@@ -1,0 +1,18 @@
+<?xml version="1.0"?>
+<package>
+  <name>TiagoBears_PoseEstimation</name>
+  <version>2.3.1</version>
+  <description>TiagoBears_PoseEstimation</description>
+  <maintainer email="dirk@stud.tu-darmstadt.de">Dirk</maintainer>
+  <author email="dirk@stud.tu-darmstadt.de">Dirk</author>
+  <license>BSD</license>
+  <buildtool_depend>catkin</buildtool_depend>
+
+  <run_depend>rospy</run_depend>
+  <run_depend>control_msgs</run_depend>
+  <run_depend>geometry_msgs</run_depend>
+
+  <run_depend>gazebo_ros</run_depend>
+  <build_depend>gazebo_ros</build_depend>
+
+</package>
