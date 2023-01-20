@@ -1,15 +1,49 @@
 cmake_minimum_required(VERSION 2.8.3)
 project(TiagoBears_PoseEstimation)
 find_package(catkin REQUIRED COMPONENTS
-  rospy
-  gazebo_ros
-  control_msgs
+  roscpp
+  pcl_ros
+  pcl_conversions
+  nav_msgs
   geometry_msgs
+  tf
+  sensor_msgs
 )
-catkin_package()
-
-catkin_install_python(PROGRAMS scripts/pose_node.py
-  DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+catkin_package(
+  INCLUDE_DIRS include
+  LIBRARIES ${PROJECT_NAME}
+  CATKIN_DEPENDS roscpp sensor_msgs pcl_ros tf # add some packages
 )
 
-catkin_python_setup()
+find_package(Boost REQUIRED COMPONENTS system)
+find_package(Eigen3 REQUIRED)
+
+include_directories(
+  include
+  ${catkin_INCLUDE_DIRS}
+  ${Boost_INCLUDE_DIRS}
+  ${EIGEN3_INCLUDE_DIRS}
+)
+
+# add here header files
+add_library(${PROJECT_NAME}
+  src/pose_estimator.cpp
+)
+target_link_libraries(${PROJECT_NAME} ${catkin_LIBRARIES})
+
+# for each new node
+add_executable(pose_node scripts/pose_node.cpp src/pose_estimator.cpp)
+add_dependencies(pose_node ${catkin_EXPORTED_TARGETS})
+target_link_libraries(pose_node ${catkin_LIBRARIES})
+
+install(
+  TARGETS ${PROJECT_NAME} pose_node # add nodes
+  ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+  LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+  RUNTIME DESTINATION ${CATKIN_GLOBAL_BIN_DESTINATION}
+)
+
+install(
+  DIRECTORY include/${PROJECT_NAME}/
+  DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION}
+)
