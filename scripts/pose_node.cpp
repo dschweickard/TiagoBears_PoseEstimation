@@ -8,4 +8,5 @@ int main(int argc, char **argv)
     ROS_INFO("I heard: [node started]");
     ros::NodeHandle nh;
     PoseEstimator pose_estimator(nh);
+    ros::spin();
 }

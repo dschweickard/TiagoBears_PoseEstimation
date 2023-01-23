@@ -15,14 +15,14 @@ catkin_package(
   CATKIN_DEPENDS roscpp sensor_msgs pcl_ros tf # add some packages
 )
 
-# find_package(Boost REQUIRED COMPONENTS system)
-# find_package(Eigen3 REQUIRED)
+find_package(Boost REQUIRED COMPONENTS system)
+find_package(Eigen3 REQUIRED)
 
 include_directories(
   include
   ${catkin_INCLUDE_DIRS}
-  # ${Boost_INCLUDE_DIRS}
-  # ${EIGEN3_INCLUDE_DIRS}
+  ${Boost_INCLUDE_DIRS}
+  ${EIGEN3_INCLUDE_DIRS}
 )
 
 # add here header files
@@ -33,7 +33,7 @@ target_link_libraries(${PROJECT_NAME} ${catkin_LIBRARIES})
 
 # for each new node
 add_executable(pose_node scripts/pose_node.cpp src/pose_estimator.cpp)
-# add_dependencies(pose_node ${catkin_EXPORTED_TARGETS})
+add_dependencies(pose_node ${catkin_EXPORTED_TARGETS})
 target_link_libraries(pose_node ${catkin_LIBRARIES})
 
 install(

@@ -5,11 +5,9 @@ PoseEstimator::PoseEstimator(ros::NodeHandle n){
     ROS_INFO("I heard: [constructor]");
     // initialize the publishers
     for(int i=0; i<28; i++){
-        std::stringstream ss;
-        ss<<"cube_"<<i<<"_odom";
-        std::string topic=ss.str();
-        ROS_INFO("I heard: [%s]", topic);
-        pose_publishers[i]=n.advertise<nav_msgs::Odometry>(topic,1);
+        char* topic;
+        sprintf(topic, "/cube_%d_odom", i);
+        pose_publishers.push_back(n.advertise<nav_msgs::Odometry>(topic,1));
     }
     // initialize the point cloud subscriber
     point_cloud_subscriber=n.subscribe<PointCloud>("/xtion/depth_registered/points", 1, &PoseEstimator::pcl_callback, this);
@@ -17,7 +15,7 @@ PoseEstimator::PoseEstimator(ros::NodeHandle n){
 
 void PoseEstimator::pcl_callback(const PointCloud::ConstPtr& msg){
     printf ("Cloud: width = %d, height = %d\n", msg->width, msg->height);
-    // BOOST_FOREACH (const pcl::PointXYZ& pt, msg->points){
-    //     printf ("\t(%f, %f, %f)\n", pt.x, pt.y, pt.z);
-    // }
+    BOOST_FOREACH (const pcl::PointXYZ& pt, msg->points){
+        printf ("\t(%f, %f, %f)\n", pt.x, pt.y, pt.z);
+    }
 }
