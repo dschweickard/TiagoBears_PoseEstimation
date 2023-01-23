@@ -25,6 +25,8 @@ class PoseEstimator{
     std::vector<ros::Publisher> pose_publishers;
     // a subscriber to get the point cloud
     ros::Subscriber point_cloud_subscriber;
+    // point cloud cache
+    PointCloud old_pcl;
 public:
     // the constructor
     PoseEstimator(ros::NodeHandle n);
