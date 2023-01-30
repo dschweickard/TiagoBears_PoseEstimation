@@ -3,8 +3,8 @@
   <name>TiagoBears_PoseEstimation</name>
   <version>2.3.1</version>
   <description>TiagoBears_PoseEstimation</description>
-  <maintainer email="dirk@stud.tu-darmstadt.de">Dirk</maintainer>
-  <author email="dirk@stud.tu-darmstadt.de">Dirk</author>
+  <maintainer email="dirk.schweickard@stud.tu-darmstadt.de">Dirk</maintainer>
+  <author email="dirk.schweickard@stud.tu-darmstadt.de">Dirk</author>
   <license>BSD</license>
   <buildtool_depend>catkin</buildtool_depend>
 
