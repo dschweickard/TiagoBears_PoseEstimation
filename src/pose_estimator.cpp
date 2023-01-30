@@ -96,7 +96,6 @@ void PoseEstimator::pcl_callback(const pcl::PCLPointCloud2ConstPtr& msg_cloud){
     
     vox.setLeafSize (0.01f, 0.01f, 0.01f);
     vox.filter (cloud_filtered);
-    pub_cloud_debug.publish (cloud_filtered);
 
     pcl::PointCloud<pcl::PointXYZ>::Ptr input_filtered_cloud(new pcl::PointCloud< pcl::PointXYZ>);
     pcl::fromPCLPointCloud2(cloud_filtered, *input_filtered_cloud);
@@ -130,7 +129,7 @@ void PoseEstimator::pcl_callback(const pcl::PCLPointCloud2ConstPtr& msg_cloud){
 
     //ICP
     pcl::IterativeClosestPoint<pcl::PointXYZ, pcl::PointXYZ> icp;
-    icp.setMaximumIterations (100);
+    icp.setMaximumIterations (1000);
     icp.setInputSource (input_filtered_cloud);
     icp.setInputTarget (model_cloud);
     pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_icp(new pcl::PointCloud< pcl::PointXYZ>);
@@ -150,67 +149,67 @@ void PoseEstimator::pcl_callback(const pcl::PCLPointCloud2ConstPtr& msg_cloud){
     
     // Show alignment
     //pcl::visualization::PCLVisualizer visu("Alignment");
-    //visu.addPointCloud (input_filtered_cloud, ColorHandlerT (input_filtered_cloud, 0.0, 255.0, 0.0), "scene");
+    //visu.addPointCloud (input_filtered_cloud, "scene");
     //visu.addPointCloud (cloud_icp, "object_aligned");
     //visu.spin ();
     //sensor_msgs::PointCloud2 debug_cloud;
     //pcl::toROSMsg(*model_cloud, debug_cloud);
-    pub_cloud_debug.publish(*input_filtered_cloud);
+    pub_cloud_debug.publish(cloud_icp);
     ROS_INFO("[published]");
 
 
-    //Algorithm params
-    bool show_keypoints_ (false);
-    bool show_correspondences_ (false);
-    bool use_cloud_resolution_ (false);
-    bool use_hough_ (true);
-    float model_ss_ (0.01f);
-    float scene_ss_ (0.03f);
-    float rf_rad_ (0.015f);
-    float descr_rad_ (0.02f);
-    float cg_size_ (0.01f);
-    float cg_thresh_ (5.0f);
+    // //Algorithm params
+    // bool show_keypoints_ (false);
+    // bool show_correspondences_ (false);
+    // bool use_cloud_resolution_ (false);
+    // bool use_hough_ (true);
+    // float model_ss_ (0.01f);
+    // float scene_ss_ (0.03f);
+    // float rf_rad_ (0.015f);
+    // float descr_rad_ (0.02f);
+    // float cg_size_ (0.01f);
+    // float cg_thresh_ (5.0f);
 
-    float resolution = static_cast<float> (computeCloudResolution (model_cloud));
-    if (resolution != 0.0f)
-    {
-      model_ss_   *= resolution;
-      scene_ss_   *= resolution;
-      rf_rad_     *= resolution;
-      descr_rad_  *= resolution;
-      cg_size_    *= resolution;
-    }
+    // float resolution = static_cast<float> (computeCloudResolution (model_cloud));
+    // if (resolution != 0.0f)
+    // {
+    //   model_ss_   *= resolution;
+    //   scene_ss_   *= resolution;
+    //   rf_rad_     *= resolution;
+    //   descr_rad_  *= resolution;
+    //   cg_size_    *= resolution;
+    // }
 
-    std::cout << "Model resolution:       " << resolution << std::endl;
-    std::cout << "Model sampling size:    " << model_ss_ << std::endl;
-    std::cout << "Scene sampling size:    " << scene_ss_ << std::endl;
-    std::cout << "LRF support radius:     " << rf_rad_ << std::endl;
-    std::cout << "SHOT descriptor radius: " << descr_rad_ << std::endl;
-    std::cout << "Clustering bin size:    " << cg_size_ << std::endl << std::endl;
+    // std::cout << "Model resolution:       " << resolution << std::endl;
+    // std::cout << "Model sampling size:    " << model_ss_ << std::endl;
+    // std::cout << "Scene sampling size:    " << scene_ss_ << std::endl;
+    // std::cout << "LRF support radius:     " << rf_rad_ << std::endl;
+    // std::cout << "SHOT descriptor radius: " << descr_rad_ << std::endl;
+    // std::cout << "Clustering bin size:    " << cg_size_ << std::endl << std::endl;
     
-    pcl::PointCloud< pcl::Normal>::Ptr model_normals (new pcl::PointCloud< pcl::Normal> ());
-    pcl::PointCloud< pcl::Normal>::Ptr scene_normals (new pcl::PointCloud< pcl::Normal> ());
-    pcl::NormalEstimationOMP<pcl::PointXYZ, pcl::Normal> norm_est;
-    norm_est.setKSearch (10);
-    norm_est.setInputCloud (model_cloud);
-    norm_est.compute (*model_normals);
+    // pcl::PointCloud< pcl::Normal>::Ptr model_normals (new pcl::PointCloud< pcl::Normal> ());
+    // pcl::PointCloud< pcl::Normal>::Ptr scene_normals (new pcl::PointCloud< pcl::Normal> ());
+    // pcl::NormalEstimationOMP<pcl::PointXYZ, pcl::Normal> norm_est;
+    // norm_est.setKSearch (10);
+    // norm_est.setInputCloud (model_cloud);
+    // norm_est.compute (*model_normals);
 
-    norm_est.setInputCloud (input_filtered_cloud);
-    norm_est.compute (*scene_normals);
+    // norm_est.setInputCloud (input_filtered_cloud);
+    // norm_est.compute (*scene_normals);
 
-    pcl::PointCloud<pcl::PointXYZ>::Ptr scene_keypoints (new pcl::PointCloud<pcl::PointXYZ> ());
-    pcl::PointCloud<pcl::PointXYZ>::Ptr model_keypoints (new pcl::PointCloud<pcl::PointXYZ> ());
+    // pcl::PointCloud<pcl::PointXYZ>::Ptr scene_keypoints (new pcl::PointCloud<pcl::PointXYZ> ());
+    // pcl::PointCloud<pcl::PointXYZ>::Ptr model_keypoints (new pcl::PointCloud<pcl::PointXYZ> ());
     
-    pcl::UniformSampling<pcl::PointXYZ> uniform_sampling;
-    uniform_sampling.setInputCloud (model_cloud);
-    uniform_sampling.setRadiusSearch (model_ss_);
-    uniform_sampling.filter (*model_keypoints);
-    std::cout << "Model total points: " << model_cloud->size () << "; Selected Keypoints: " << model_keypoints->size () << std::endl;
+    // pcl::UniformSampling<pcl::PointXYZ> uniform_sampling;
+    // uniform_sampling.setInputCloud (model_cloud);
+    // uniform_sampling.setRadiusSearch (model_ss_);
+    // uniform_sampling.filter (*model_keypoints);
+    // std::cout << "Model total points: " << model_cloud->size () << "; Selected Keypoints: " << model_keypoints->size () << std::endl;
 
-    uniform_sampling.setInputCloud (input_filtered_cloud);
-    uniform_sampling.setRadiusSearch (scene_ss_);
-    uniform_sampling.filter (*scene_keypoints);
-    std::cout << "Scene total points: " << input_filtered_cloud->size () << "; Selected Keypoints: " << scene_keypoints->size () << std::endl;
+    // uniform_sampling.setInputCloud (input_filtered_cloud);
+    // uniform_sampling.setRadiusSearch (scene_ss_);
+    // uniform_sampling.filter (*scene_keypoints);
+    // std::cout << "Scene total points: " << input_filtered_cloud->size () << "; Selected Keypoints: " << scene_keypoints->size () << std::endl;
 
     // pcl::PointCloud<pcl::SHOT352>::Ptr model_descriptors (new pcl::PointCloud<pcl::SHOT352> ());
     // pcl::PointCloud<pcl::SHOT352>::Ptr scene_descriptors (new pcl::PointCloud<pcl::SHOT352> ());
