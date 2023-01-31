@@ -32,7 +32,6 @@
 #include <pcl/conversions.h>
 #include <pcl_ros/transforms.h>
 #include <pcl/filters/crop_box.h>
-
 #include <pcl/correspondence.h>
 #include <pcl/features/normal_3d_omp.h>
 #include <pcl/features/shot_omp.h>
@@ -44,6 +43,9 @@
 #include <pcl/kdtree/kdtree_flann.h>
 #include <pcl/kdtree/impl/kdtree_flann.hpp>
 #include <pcl/common/transforms.h>
+#include <pcl/filters/extract_indices.h>
+#include <pcl/filters/statistical_outlier_removal.h>
+#include <pcl/segmentation/extract_clusters.h>
 
 typedef pcl::PointCloud<pcl::PointXYZ> PointCloud;
 typedef pcl::PCLPointCloud2 PointCloud2;
@@ -58,8 +60,8 @@ class PoseEstimator{
     PointCloud cloud;
     PointCloud2 blob;
     // publisher for debugging
-    ros::Publisher pub_model_cloud;
     ros::Publisher pub_cloud_debug;
+    //ros::Publisher pub_cloud_cluster;
 public:
     // the constructor
     PoseEstimator(ros::NodeHandle n);
