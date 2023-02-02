@@ -8,11 +8,22 @@ find_package(catkin REQUIRED COMPONENTS
   geometry_msgs
   tf
   sensor_msgs
+  message_generation
 )
+
+
+add_message_files(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+FILES
+msg/cloud_clusters.msg
+)
+
+
+generate_messages(DEPENDENCIES sensor_msgs)
+
 catkin_package(
   INCLUDE_DIRS include
   LIBRARIES ${PROJECT_NAME}
-  CATKIN_DEPENDS roscpp sensor_msgs pcl_ros tf # add some packages
+  CATKIN_DEPENDS roscpp sensor_msgs pcl_ros tf message_runtime # add some packages
 )
 
 find_package(Boost REQUIRED COMPONENTS system)
@@ -31,10 +42,15 @@ add_library(${PROJECT_NAME}
 )
 target_link_libraries(${PROJECT_NAME} ${catkin_LIBRARIES})
 
+
+
+
+
 # for each new node
 add_executable(pose_node scripts/pose_node.cpp src/pose_estimator.cpp)
 add_dependencies(pose_node ${catkin_EXPORTED_TARGETS})
 target_link_libraries(pose_node ${catkin_LIBRARIES})
+
 
 install(
   TARGETS ${PROJECT_NAME} pose_node # add nodes

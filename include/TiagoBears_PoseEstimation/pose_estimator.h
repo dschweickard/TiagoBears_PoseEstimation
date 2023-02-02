@@ -61,7 +61,7 @@ class PoseEstimator{
     PointCloud2 blob;
     // publisher for debugging
     ros::Publisher pub_cloud_debug;
-    //ros::Publisher pub_cloud_cluster;
+    //ros::Publisher pup_cloud_cluster;
 public:
     // the constructor
     PoseEstimator(ros::NodeHandle n);
