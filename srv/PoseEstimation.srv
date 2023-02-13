@@ -1,0 +1,5 @@
+#request
+string base_frame
+---
+#response
+nav_msgs/Odometry[] poseArray

@@ -9,21 +9,29 @@ find_package(catkin REQUIRED COMPONENTS
   tf
   sensor_msgs
   message_generation
+  nav_msgs 
 )
 
 
 add_message_files(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-FILES
-msg/cloud_clusters.msg
+  FILES
+  msg/cloud_clusters.msg
+  #msg/PoseEstimation.msg
+)
+
+add_service_files(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+   FILES
+   srv/PoseEstimation.srv
 )
 
 
-generate_messages(DEPENDENCIES sensor_msgs)
+generate_messages(DEPENDENCIES sensor_msgs geometry_msgs nav_msgs) 
+
 
 catkin_package(
   INCLUDE_DIRS include
   LIBRARIES ${PROJECT_NAME}
-  CATKIN_DEPENDS roscpp sensor_msgs pcl_ros tf message_runtime # add some packages
+  CATKIN_DEPENDS roscpp sensor_msgs geometry_msgs nav_msgs pcl_ros tf message_runtime # add some packages
 )
 
 find_package(Boost REQUIRED COMPONENTS system)

@@ -47,6 +47,8 @@
 #include <pcl/filters/statistical_outlier_removal.h>
 #include <pcl/segmentation/extract_clusters.h>
 
+#include <TiagoBears_PoseEstimation/PoseEstimation.h>
+
 typedef pcl::PointCloud<pcl::PointXYZ> PointCloud;
 typedef pcl::PCLPointCloud2 PointCloud2;
 // the class and functions prototypes
@@ -61,11 +63,16 @@ class PoseEstimator{
     PointCloud2 blob;
     // publisher for debugging
     ros::Publisher pub_cloud_debug;
+    ros::Publisher pub_pose_debug;
     //ros::Publisher pup_cloud_cluster;
+    //Server
+    ros::ServiceServer pose_server;
 public:
     // the constructor
     PoseEstimator(ros::NodeHandle n);
     void pcl_callback(const pcl::PCLPointCloud2ConstPtr& msg_cloud);
+    void service_callback(TiagoBears_PoseEstimation::PoseEstimation::Request& req,
+                      TiagoBears_PoseEstimation::PoseEstimation::Response& res);
 };
 
 #endif
