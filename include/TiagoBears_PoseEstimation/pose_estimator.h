@@ -75,15 +75,17 @@ class PoseEstimator{
     ros::Publisher pub_pose_debug;
     //ros::Publisher pup_cloud_cluster;
     //Server
-    ros::ServiceServer pose_server;
+    //ros::ServiceServer pose_server;
 public:
     // the constructor
     PoseEstimator(ros::NodeHandle n);
     
     void pcl_callback(const pcl::PCLPointCloud2ConstPtr& msg_cloud);
 
-    void service_callback(TiagoBears_PoseEstimation::PoseEstimation::Request& req,
+    bool service_callback(TiagoBears_PoseEstimation::PoseEstimation::Request& req,
                       TiagoBears_PoseEstimation::PoseEstimation::Response& res);
 };
+
+
 
 #endif
