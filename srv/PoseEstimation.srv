@@ -2,4 +2,4 @@
 string base_frame
 ---
 #response
-nav_msgs/Odometry[] poseArray
+nav_msgs/Odometry[28] poseArray

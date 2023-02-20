@@ -12,6 +12,11 @@
 #include <nav_msgs/Odometry.h>
 #include <geometry_msgs/Pose.h>
 
+#include <tf2_ros/transform_listener.h>
+#include <geometry_msgs/TransformStamped.h>
+#include <tf2_eigen/tf2_eigen.h>
+#include<tf2_geometry_msgs/tf2_geometry_msgs.h>
+
 // PCL related headers
 #include <pcl_ros/point_cloud.h>
 #include <pcl/point_types.h>
@@ -46,6 +51,10 @@
 #include <pcl/filters/extract_indices.h>
 #include <pcl/filters/statistical_outlier_removal.h>
 #include <pcl/segmentation/extract_clusters.h>
+#include <pcl/search/search.h>
+#include <pcl/features/normal_3d.h>
+#include <pcl/filters/filter_indices.h> // for pcl::removeNaNFromPointCloud
+#include <pcl/segmentation/region_growing.h>
 
 #include <TiagoBears_PoseEstimation/PoseEstimation.h>
 
@@ -70,7 +79,9 @@ class PoseEstimator{
 public:
     // the constructor
     PoseEstimator(ros::NodeHandle n);
+    
     void pcl_callback(const pcl::PCLPointCloud2ConstPtr& msg_cloud);
+
     void service_callback(TiagoBears_PoseEstimation::PoseEstimation::Request& req,
                       TiagoBears_PoseEstimation::PoseEstimation::Response& res);
 };

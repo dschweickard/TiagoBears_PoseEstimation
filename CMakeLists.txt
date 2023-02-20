@@ -9,7 +9,9 @@ find_package(catkin REQUIRED COMPONENTS
   tf
   sensor_msgs
   message_generation
-  nav_msgs 
+  nav_msgs
+  tf2
+  tf2_ros 
 )
 
 
@@ -27,11 +29,10 @@ add_service_files(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
 
 generate_messages(DEPENDENCIES sensor_msgs geometry_msgs nav_msgs) 
 
-
 catkin_package(
   INCLUDE_DIRS include
   LIBRARIES ${PROJECT_NAME}
-  CATKIN_DEPENDS roscpp sensor_msgs geometry_msgs nav_msgs pcl_ros tf message_runtime # add some packages
+  CATKIN_DEPENDS roscpp sensor_msgs geometry_msgs nav_msgs pcl_ros tf message_runtime tf2 tf2_ros # add some packages
 )
 
 find_package(Boost REQUIRED COMPONENTS system)
