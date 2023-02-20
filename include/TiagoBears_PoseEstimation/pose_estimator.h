@@ -82,13 +82,8 @@ public:
     
     void pcl_callback(const pcl::PCLPointCloud2ConstPtr& msg_cloud);
 
-<<<<<<< HEAD
-    bool service_callback(TiagoBears_PoseEstimation::PoseEstimation::Request& req,
-                      TiagoBears_PoseEstimation::PoseEstimation::Response& res);
-=======
     bool service_callback(TiagoBears_PoseEstimation::PoseEstimation::Request &req, 
                             TiagoBears_PoseEstimation::PoseEstimation::Response &res);
->>>>>>> d0007af78b2d7475724a2c6898af94dc43a29692
 };
 
 
