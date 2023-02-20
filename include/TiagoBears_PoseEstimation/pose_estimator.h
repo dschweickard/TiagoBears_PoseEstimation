@@ -17,6 +17,8 @@
 #include <tf2_eigen/tf2_eigen.h>
 #include<tf2_geometry_msgs/tf2_geometry_msgs.h>
 
+#include <TiagoBears_PoseEstimation/PoseEstimation.h>
+
 // PCL related headers
 #include <pcl_ros/point_cloud.h>
 #include <pcl/point_types.h>
@@ -56,8 +58,6 @@
 #include <pcl/filters/filter_indices.h> // for pcl::removeNaNFromPointCloud
 #include <pcl/segmentation/region_growing.h>
 
-#include <TiagoBears_PoseEstimation/PoseEstimation.h>
-
 typedef pcl::PointCloud<pcl::PointXYZ> PointCloud;
 typedef pcl::PCLPointCloud2 PointCloud2;
 // the class and functions prototypes
@@ -82,8 +82,13 @@ public:
     
     void pcl_callback(const pcl::PCLPointCloud2ConstPtr& msg_cloud);
 
+<<<<<<< HEAD
     bool service_callback(TiagoBears_PoseEstimation::PoseEstimation::Request& req,
                       TiagoBears_PoseEstimation::PoseEstimation::Response& res);
+=======
+    bool service_callback(TiagoBears_PoseEstimation::PoseEstimation::Request &req, 
+                            TiagoBears_PoseEstimation::PoseEstimation::Response &res);
+>>>>>>> d0007af78b2d7475724a2c6898af94dc43a29692
 };
 
 

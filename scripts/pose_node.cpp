@@ -219,7 +219,7 @@ int main(int argc, char **argv)
     ROS_INFO("I heard: [node started]");
     ros::NodeHandle nh;
     PoseEstimator pose_estimator(nh);
-    ros::ServiceServer pose_server = nh.advertiseService("PoseEstimation", service_callback)  ;
+    // define a ros service server
     ros::spin();
 }
 

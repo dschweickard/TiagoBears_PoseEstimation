@@ -24,16 +24,12 @@ PoseEstimator::PoseEstimator(ros::NodeHandle n){
     ROS_INFO("I heard: [Publisher2]");
     pub_pose_debug = n.advertise<nav_msgs::Odometry>("CubePose", 1);
     
-    
-    
-    //pose_server = n.advertiseService("PoseEstimation", &PoseEstimator::service_callback,this);
+    pose_server = n.advertiseService("PoseEstimation", &PoseEstimator::service_callback,this);
 
     //ROS_INFO("I heard: [Publisher 2]");
     //pub_cloud_cluster = n.advertise<sensor_msgs::PointCloud2>("cloudClusters", 1);
 
 }
-
-
 
 
 
@@ -496,15 +492,15 @@ void PoseEstimator::pcl_callback(const pcl::PCLPointCloud2ConstPtr& msg_cloud){
 //
 
 
-// bool service_callback(TiagoBears_PoseEstimation::PoseEstimation::Request &req, TiagoBears_PoseEstimation::PoseEstimation::Response &res)
-// {
-//   sensor_msgs::PointCloud2 msg_cloud;
-//   //pcl::PCLPointCloud2ConstPtr msg_cloud;
-//   sensor_msgs::PointCloud2ConstPtr msg = ros::topic::waitForMessage<sensor_msgs::PointCloud2>("/xtion/depth_registered/points", ros::Duration(10));
-//     if (msg == NULL)
-//         ROS_INFO("No point clound messages received");
-//     else
-//         msg_cloud = *msg;
+void service_callback(TiagoBears_PoseEstimation::PoseEstimation::Request& req, TiagoBears_PoseEstimation::PoseEstimation::Response& res)
+{
+  sensor_msgs::PointCloud2 msg_cloud;
+  //pcl::PCLPointCloud2ConstPtr msg_cloud;
+  sensor_msgs::PointCloud2ConstPtr msg = ros::topic::waitForMessage<sensor_msgs::PointCloud2>("/xtion/depth_registered/points", ros::Duration(10));
+    if (msg == NULL)
+        ROS_INFO("No point clound messages received");
+    else
+        msg_cloud = *msg;
 
 //   pcl::PointCloud<pcl::PointXYZ>::Ptr model_cloud (new pcl::PointCloud<pcl::PointXYZ>);
 //   pcl::PCLPointCloud2 cloud_blob;
@@ -690,13 +686,13 @@ void PoseEstimator::pcl_callback(const pcl::PCLPointCloud2ConstPtr& msg_cloud){
     
 //     res.poseArray[i] = pose_odometry;
 
-//     pose_vec.push_back(pose_odometry);
-//     //geometry_msgs::Pose pose_msg;
-//     //tf2::doTransform()
-//     i++;
-//   }
-//   return true;
-//   //res = estimated_pose_vec;
-// }
+    pose_vec.push_back(pose_odometry);
+    //geometry_msgs::Pose pose_msg;
+    //tf2::doTransform()
+    i++;
+  }
+
+  //res = estimated_pose_vec;
+}
 
 
