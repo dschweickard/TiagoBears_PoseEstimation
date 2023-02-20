@@ -24,14 +24,12 @@ PoseEstimator::PoseEstimator(ros::NodeHandle n){
     ROS_INFO("I heard: [Publisher2]");
     pub_pose_debug = n.advertise<nav_msgs::Odometry>("CubePose", 1);
     
-    pose_server = n.advertiseService("PoseEstimation", &PoseEstimator::service_callback,this);
+    pose_server = n.advertiseService("/PoseEstimation", &PoseEstimator::service_callback,this);
 
     //ROS_INFO("I heard: [Publisher 2]");
     //pub_cloud_cluster = n.advertise<sensor_msgs::PointCloud2>("cloudClusters", 1);
 
 }
-
-
 
 
 
@@ -494,7 +492,7 @@ void PoseEstimator::pcl_callback(const pcl::PCLPointCloud2ConstPtr& msg_cloud){
 //
 
 
-void service_callback(TiagoBears_PoseEstimation::PoseEstimation::Request& req, TiagoBears_PoseEstimation::PoseEstimation::Response& res)
+bool service_callback(TiagoBears_PoseEstimation::PoseEstimation::Request &req, TiagoBears_PoseEstimation::PoseEstimation::Response &res)
 {
   sensor_msgs::PointCloud2 msg_cloud;
   //pcl::PCLPointCloud2ConstPtr msg_cloud;
@@ -695,6 +693,7 @@ void service_callback(TiagoBears_PoseEstimation::PoseEstimation::Request& req, T
   }
 
   //res = estimated_pose_vec;
+  return true;
 }
 
 
