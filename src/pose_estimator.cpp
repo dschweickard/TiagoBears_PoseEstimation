@@ -144,13 +144,37 @@ std::vector<pcl::PointCloud<pcl::PointXYZ>::Ptr> SuperVoxelClustering (pcl::Poin
 // }
 
 
-void getMaxIndex(Eigen::Matrix3f &matrix){
- //Eigen::MatrixXf::Index maxIndex;
- Eigen::VectorXf maxVal = matrix.rowwise().maxCoeff();
- float max = maxVal.maxCoeff();
- //std::cout << "Maxima at positions " << endl;
- //std::cout << maxIndex << std::endl;
- //std::cout << "maxVal " << maxVal << endl; 
+tf2::Matrix3x3 CorrectRotationMatrix(tf2::Matrix3x3 &matrix){
+  // conver them to Eigen matrix
+  Eigen::MatrixXf eigenMatrix = Eigen::MatrixXf::Zero(3,3);
+  for (int i=0; i<3; i++){
+    for (int j=0; j<3; j++){
+      eigenMatrix(i,j) = matrix[i][j];
+    }
+  }
+  for (int i=0;i<3; i++){
+    // take a sub matrix with size (3-i)x(3-i)
+    Eigen::MatrixXf subMatrix = eigenMatrix.block(0,0,3-i,3-i);
+    // update the submatrix to have absolute values
+    subMatrix = subMatrix.cwiseAbs();
+    // find the max element in the sub matrix
+    int max_x, max_y;
+    float maxVal = subMatrix.maxCoeff(&max_x, &max_y);
+    // swap the rows and columns such that the max value is in (3-i), (3-i) position
+    eigenMatrix.row(2-i).swap(eigenMatrix.row(max_x));
+    eigenMatrix.col(2-i).swap(eigenMatrix.col(max_y));
+    // multipy the row with -1 if the max value is negative
+    if (eigenMatrix(2-i,2-i) < 0){
+      eigenMatrix.row(2-i) = -1 * eigenMatrix.row(2-i);
+    }
+  }
+  // convert back to tf2::Matrix3x3
+  for (int i=0; i<3; i++){
+    for (int j=0; j<3; j++){
+      matrix[i][j] = eigenMatrix(i,j);
+    }
+  }
+  return matrix;
 }
 
 
@@ -164,7 +188,7 @@ void PoseEstimator::pcl_callback(const pcl::PCLPointCloud2ConstPtr& msg_cloud){
     ROS_INFO_STREAM("FrameID  " << msg_cloud->header.frame_id);
     pcl::PointCloud<pcl::PointXYZ>::Ptr model_cloud (new pcl::PointCloud<pcl::PointXYZ>);
     pcl::PCLPointCloud2 cloud_blob;
-    pcl::io::loadPCDFile ("cube.pcd", cloud_blob);
+    pcl::io::loadPCDFile ("src/TiagoBears_PoseEstimation/src/cube.pcd", cloud_blob);
     pcl::fromPCLPointCloud2 (cloud_blob, *model_cloud); //* convert from pcl/PCLPointCloud2 to pcl::PointCloud<T>
     
 
@@ -309,7 +333,7 @@ void PoseEstimator::pcl_callback(const pcl::PCLPointCloud2ConstPtr& msg_cloud){
     icp.setMaximumIterations (100000);
     icp.setTransformationEpsilon (1e-9);
     //icp.setMaxCorrespondenceDistance (0.003);
-    //icp.setRANSACOutlierRejectionThreshold (1.);
+    //icp.setRANSACOutlierRejectionThreshold (1.);tf2::
     
     std::vector <nav_msgs::Odometry> pose_vec;
     std::vector<nav_msgs::Odometry> estimated_pose_vec(28);
@@ -317,8 +341,8 @@ void PoseEstimator::pcl_callback(const pcl::PCLPointCloud2ConstPtr& msg_cloud){
     int i=0;
     for (auto& clouds : clusters_vec)
     {
-      icp.setInputSource (clouds);
-      icp.setInputTarget (model_cloud);
+      icp.setInputSource (model_cloud);
+      icp.setInputTarget (clouds);
       pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_icp(new pcl::PointCloud< pcl::PointXYZ>);
       const Eigen::Matrix4f init_guess;
       // init_guess << 0., 0.,0.,0.,
@@ -338,18 +362,18 @@ void PoseEstimator::pcl_callback(const pcl::PCLPointCloud2ConstPtr& msg_cloud){
 
       tf2::Vector3 position_cube = tf2::Vector3(icp_transformation(0,3),icp_transformation(1,3),icp_transformation(2,3));
       //Eigen::MatrixXf m(3,3);
-      Eigen::Matrix3f m;
-      m << icp_transformation(0,0),icp_transformation(0,1),icp_transformation(0,2),
-                                                                   icp_transformation(1,0),icp_transformation(1,1),icp_transformation(1,2),
-                                                                   icp_transformation(2,0),icp_transformation(2,1),icp_transformation(2,2);
+      // Eigen::Matrix3f m;
+      // m << icp_transformation(0,0),icp_transformation(0,1),icp_transformation(0,2),
+      //                                                              icp_transformation(1,0),icp_transformation(1,1),icp_transformation(1,2),
+      //                                                              icp_transformation(2,0),icp_transformation(2,1),icp_transformation(2,2);
 
-      std::cout << m << std::endl;
+      // std::cout << m << std::endl;
 
-      getMaxIndex(m);
+      // m = CorrectRotationMatrix(m);
 
-      std::cout << " Position of cube x: " << icp_transformation(0,3) << std::endl;
-      std::cout << "Position of cube y: " << icp_transformation(1,3) << std::endl;
-      std::cout << "Position of cube z: " << icp_transformation(2,3) << std::endl;
+      // std::cout << " Position of cube x: " << icp_transformation(0,3) << std::endl;
+      // std::cout << "Position of cube y: " << icp_transformation(1,3) << std::endl;
+      // std::cout << "Position of cube z: " << icp_transformation(2,3) << std::endl;
 
 
       tf2::Matrix3x3 cube_rotation = tf2::Matrix3x3(icp_transformation(0,0),icp_transformation(0,1),icp_transformation(0,2),
@@ -371,7 +395,13 @@ void PoseEstimator::pcl_callback(const pcl::PCLPointCloud2ConstPtr& msg_cloud){
       geometry_msgs::TransformStamped  pose_transformed;
       cloudBuffer.transform(estimated_pose, pose_transformed,"base_footprint",ros::Duration(1.));
 
-
+      // get the rotation matrix from the quaternion of pose_transformed
+      tf2::Quaternion q(pose_transformed.transform.rotation.x, pose_transformed.transform.rotation.y, pose_transformed.transform.rotation.z, pose_transformed.transform.rotation.w);
+      // quaternion to rotation matrix
+      tf2::Matrix3x3 m(q);
+      // correct the rotation matrix
+      tf2::Matrix3x3 m2 = CorrectRotationMatrix(m);
+      m2.getRotation(cube_orientation);
 
 
       // try{
@@ -398,14 +428,15 @@ void PoseEstimator::pcl_callback(const pcl::PCLPointCloud2ConstPtr& msg_cloud){
       // tfBuffer.transform(estimated_pose,pose_transformed,"base_footprint",ros::Duration(0.1));
       // //std::cout << " Matrix: " << pose_transformed.matrix() << std::endl;
 
-
+      // pose_transformed=estimated_pose;
       nav_msgs::Odometry pose_odometry;
       pose_odometry.header = pose_transformed.header;
+      pose_odometry.header.frame_id = "base_footprint";
       //pose_odometry.child_frame_id = pose_transformed.child_frame_id;
       pose_odometry.pose.pose.position.x = pose_transformed.transform.translation.x;
       pose_odometry.pose.pose.position.y = pose_transformed.transform.translation.y;
       pose_odometry.pose.pose.position.z = pose_transformed.transform.translation.z;
-      pose_odometry.pose.pose.orientation = pose_transformed.transform.rotation;
+      pose_odometry.pose.pose.orientation = tf2::toMsg(cube_orientation);
 
       std::cout << " x: " << pose_odometry.pose.pose.position.x << std::endl;
       std::cout << " y: " << pose_odometry.pose.pose.position.y << std::endl;
@@ -419,7 +450,7 @@ void PoseEstimator::pcl_callback(const pcl::PCLPointCloud2ConstPtr& msg_cloud){
       //tf2::doTransform()
       i++;
     } 
-    int minElementIndex = std::min_element(score_vec.begin(),score_vec.end()) - score_vec.begin();
+    int minElementIndex = std::max_element(score_vec.begin(),score_vec.end()) - score_vec.begin();
     std::cout << "minElementIndex:" << minElementIndex << std::endl;
     pub_pose_debug.publish(pose_vec.at(minElementIndex));
     pub_cloud_debug.publish(clusters_vec.at(minElementIndex));
