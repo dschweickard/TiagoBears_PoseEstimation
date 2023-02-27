@@ -1,22 +1,31 @@
 #include <ros/ros.h>
-#include "TiagoBears_PoseEstimation/pose_estimator.h"
-
-
-// bool cb (TiagoBears_PoseEstimation::PoseEstimation::Request &req, TiagoBears_PoseEstimation::PoseEstimation::Response &res){
-//     ROS_INFO("I heard: [service callback]");
-//     return true;
-// }
-
+#include <TiagoBears_PoseEstimation/pose_estimator.h>
+#include <TiagoBears_PoseEstimation/PoseEstimation.h>
 
 bool service_callback(TiagoBears_PoseEstimation::PoseEstimation::Request &req, TiagoBears_PoseEstimation::PoseEstimation::Response &res)
 {
+  float leaf_size = 0.003f;
+
+  float crop_x_min = -0.6f;
+  float crop_x_max = +0.6f;
+  float crop_y_min = -0.6f;
+  float crop_y_max = +1.1f;
+  float crop_z_min = -1.0f;
+  float crop_z_max = +1.0f;
+  float plane_seg_dist_treshold = 0.005f;
+  float cluster_tolerance = 0.004f;
+  int cluster_size_min = 150;
+  int cluster_size_max = 1500;
+
+
   sensor_msgs::PointCloud2 msg_cloud;
   //pcl::PCLPointCloud2ConstPtr msg_cloud;
   sensor_msgs::PointCloud2ConstPtr msg = ros::topic::waitForMessage<sensor_msgs::PointCloud2>("/xtion/depth_registered/points", ros::Duration(10));
-    if (msg == NULL)
-        ROS_INFO("No point clound messages received");
-    else
+  if (msg == NULL)
+      ROS_INFO("No point clound messages received");
+  else
         msg_cloud = *msg;
+  ROS_INFO_STREAM("FrameID  " << msg->header.frame_id);
 
   pcl::PointCloud<pcl::PointXYZ>::Ptr model_cloud (new pcl::PointCloud<pcl::PointXYZ>);
   pcl::PCLPointCloud2 cloud_blob;
@@ -34,7 +43,7 @@ bool service_callback(TiagoBears_PoseEstimation::PoseEstimation::Request &req, T
 
   pcl::VoxelGrid<pcl::PointXYZ> vox;
   vox.setInputCloud (msg_cloud_pcl);
-  vox.setLeafSize (0.003f, 0.003f, 0.003f);
+  vox.setLeafSize (leaf_size,leaf_size,leaf_size);
   vox.filter (*cloud_filterd_vox);
 
 
@@ -44,8 +53,8 @@ bool service_callback(TiagoBears_PoseEstimation::PoseEstimation::Request &req, T
   pcl::CropBox<pcl::PointXYZ> crop;
   crop.setInputCloud (cloud_filterd_vox);
   // y and z parameter seem to crop same dimension just inverted?
-  crop.setMin(Eigen::Vector4f(-0.6, -0.6, -1, 0.));
-  crop.setMax(Eigen::Vector4f(+0.6, +1.1, +1, 0.));
+  crop.setMin(Eigen::Vector4f(crop_x_min, crop_y_min, crop_z_min, 0.));
+  crop.setMax(Eigen::Vector4f(crop_x_max, crop_y_max, crop_z_max, 0.));
   crop.filter (*cloud_cropped);
   ROS_INFO("[filtered]");
 
@@ -61,7 +70,7 @@ bool service_callback(TiagoBears_PoseEstimation::PoseEstimation::Request &req, T
   seg.setModelType (pcl::SACMODEL_PLANE);
   seg.setMethodType (pcl::SAC_RANSAC);
   seg.setMaxIterations (1000);
-  seg.setDistanceThreshold (0.005f);
+  seg.setDistanceThreshold (plane_seg_dist_treshold);
   // Segment largest planar component from cropped cloud
   seg.setInputCloud (cloud_cropped);
   seg.segment (*inliers, *coefficients);
@@ -93,9 +102,9 @@ bool service_callback(TiagoBears_PoseEstimation::PoseEstimation::Request &req, T
 
   std::vector<pcl::PointIndices> cluster_indices;
   pcl::EuclideanClusterExtraction<pcl::PointXYZ> ece;
-  ece.setClusterTolerance (0.004f); //cluster_tolerance 
-  ece.setMinClusterSize (150); //cluster_min_size
-  ece.setMaxClusterSize (1500); //cluster_max_size
+  ece.setClusterTolerance (cluster_tolerance); //cluster_tolerance 
+  ece.setMinClusterSize (cluster_size_min); //cluster_min_size
+  ece.setMaxClusterSize (cluster_size_max); //cluster_max_size
   ece.setSearchMethod (tree);
   ece.setInputCloud (cloud_cubes);
   ece.extract (cluster_indices);
@@ -120,9 +129,9 @@ bool service_callback(TiagoBears_PoseEstimation::PoseEstimation::Request &req, T
   }
   std::vector <nav_msgs::Odometry> pose_vec;
     
-  tf2_ros::Buffer tfBuffer;
-  tf2_ros::TransformListener tfListener(tfBuffer);
-  geometry_msgs::TransformStamped transformStamped;
+  tf2_ros::Buffer cloudBuffer;
+  geometry_msgs::TransformStamped transformStampedICPPose;
+  tf2_ros::TransformListener tfListenerCloud(cloudBuffer);
   
   //ICP
   std::vector<double> score_vec(28, 0.0);
@@ -130,7 +139,7 @@ bool service_callback(TiagoBears_PoseEstimation::PoseEstimation::Request &req, T
   std::vector<pcl::PointCloud<pcl::PointXYZ>::Ptr > icp_vec;
 
   pcl::IterativeClosestPoint<pcl::PointXYZ, pcl::PointXYZ> icp;
-  icp.setMaximumIterations (1000);
+  icp.setMaximumIterations (10000);
   icp.setTransformationEpsilon (1e-9);
   //icp.setMaxCorrespondenceDistance (0.003);
   //icp.setRANSACOutlierRejectionThreshold (1.);
@@ -152,33 +161,30 @@ bool service_callback(TiagoBears_PoseEstimation::PoseEstimation::Request &req, T
     score_vec.push_back(score);
     //std::cout << " Prob: " << prob_vec.at(i) << std::endl;
     
+    tf2::Vector3 position_cube = tf2::Vector3(icp_transformation(0,3),icp_transformation(1,3),icp_transformation(2,3));
+      
+    tf2::Matrix3x3 cube_rotation = tf2::Matrix3x3(icp_transformation(0,0),icp_transformation(0,1),icp_transformation(0,2),
+                                                                   icp_transformation(1,0),icp_transformation(1,1),icp_transformation(1,2),
+                                                                   icp_transformation(2,0),icp_transformation(2,1),icp_transformation(2,2));
+      
+    tf2::Quaternion cube_orientation;
+    cube_rotation.getRotation(cube_orientation); 
 
-    try{
-      transformStamped = tfBuffer.lookupTransform("base_footprint","xtion_depth_frame",ros::Time(0),ros::Duration(0.1));
-    }
-    catch (tf2::TransformException &ex) {
-        ROS_WARN("%s",ex.what());
-    }
+    geometry_msgs::TransformStamped estimated_pose;
 
-    Eigen::Matrix4d temp_matrix;
-    temp_matrix = icp_transformation.cast<double>();
-    Eigen::Affine3d pose_icp;
-    pose_icp.matrix() = temp_matrix;
-    //std::cout << " Matrix1: " << pose_icp.matrix() << std::endl;
-    geometry_msgs::TransformStamped estimated_pose = tf2::eigenToTransform(pose_icp);
-    //std::cout << " Matrix2: " << estimated_pose << std::endl;
+      //estimated_pose.header.frame_id = msg_cloud->header.frame_id;
+      //estimated_pose.header.seq = msg_cloud->header.seq;
+    estimated_pose.header.frame_id = msg->header.frame_id;
+    estimated_pose.header.seq = msg->header.seq;
+    estimated_pose.transform.translation = tf2::toMsg(position_cube);
+    estimated_pose.transform.rotation = tf2::toMsg(cube_orientation);
 
     geometry_msgs::TransformStamped  pose_transformed;
-    tf2::doTransform(estimated_pose, pose_transformed, transformStamped);
-    
-    Eigen::Affine3d pose_icp_transformed;
-    tf2::doTransform(pose_icp, pose_icp_transformed, transformStamped);
-    std::cout << " Matrix: " << pose_icp_transformed.matrix() << std::endl;
+    cloudBuffer.transform(estimated_pose, pose_transformed,"base_footprint",ros::Duration(1.));
     
     nav_msgs::Odometry pose_odometry;
-
     pose_odometry.header = pose_transformed.header;
-    pose_odometry.child_frame_id = pose_transformed.child_frame_id;
+    //pose_odometry.child_frame_id = pose_transformed.child_frame_id;
     pose_odometry.pose.pose.position.x = pose_transformed.transform.translation.x;
     pose_odometry.pose.pose.position.y = pose_transformed.transform.translation.y;
     pose_odometry.pose.pose.position.z = pose_transformed.transform.translation.z;
@@ -187,15 +193,6 @@ bool service_callback(TiagoBears_PoseEstimation::PoseEstimation::Request &req, T
     std::cout << " x: " << pose_odometry.pose.pose.position.x << std::endl;
     std::cout << " y: " << pose_odometry.pose.pose.position.y << std::endl;
     std::cout << " z: " << pose_odometry.pose.pose.position.z << std::endl;
-    // tf::Transform tf_ref = tf::Transform(tf::Matrix3x3(icp_transformation(0,0),icp_transformation(0,1),icp_transformation(0,2),
-    //                                                             icp_transformation(1,0),icp_transformation(1,1),icp_transformation(1,2),
-    //                                                             icp_transformation(2,0),icp_transformation(2,1),icp_transformation(2,2)),
-    //                                               tf::Vector3(icp_transformation(0,3),icp_transformation(1,3),icp_transformation(2,3)));
-    // //tf::Vector3 trans = tf_ref.getOrigin();
-    // //tf::Quaternion rot = tf_ref.getRotation();
-    //target_pose = cam_to_base * tf_ref;
-    //geometry_msgs::Pose pos_tmp;
-    //tf::poseTFToMsg(target_pose, pos_tmp);
 
 
     estimated_pose_vec.at(i) = pose_odometry;
@@ -203,12 +200,11 @@ bool service_callback(TiagoBears_PoseEstimation::PoseEstimation::Request &req, T
     res.poseArray[i] = pose_odometry;
 
     pose_vec.push_back(pose_odometry);
-    //geometry_msgs::Pose pose_msg;
-    //tf2::doTransform()
+
     i++;
   }
   return true;
-  //res = estimated_pose_vec;
+
 }
 
 
@@ -220,6 +216,7 @@ int main(int argc, char **argv)
     ros::NodeHandle nh;
     PoseEstimator pose_estimator(nh);
     // define a ros service server
+    ros::ServiceServer service = nh.advertiseService("PoseEstimation", service_callback);
     ros::spin();
 }
 

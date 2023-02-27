@@ -19,6 +19,7 @@
 
 #include <TiagoBears_PoseEstimation/PoseEstimation.h>
 
+
 // PCL related headers
 #include <pcl_ros/point_cloud.h>
 #include <pcl/point_types.h>
@@ -57,9 +58,13 @@
 #include <pcl/features/normal_3d.h>
 #include <pcl/filters/filter_indices.h> // for pcl::removeNaNFromPointCloud
 #include <pcl/segmentation/region_growing.h>
+#include <pcl/registration/sample_consensus_prerejective.h>
+#include <pcl/visualization/pcl_visualizer.h>
+
 
 typedef pcl::PointCloud<pcl::PointXYZ> PointCloud;
 typedef pcl::PCLPointCloud2 PointCloud2;
+typedef int counter;
 // the class and functions prototypes
 class PoseEstimator{
     // an array of publishers each of which publish the pose of a cube
@@ -72,6 +77,7 @@ class PoseEstimator{
     PointCloud2 blob;
     // publisher for debugging
     ros::Publisher pub_cloud_debug;
+    ros::Publisher pub_icp_debug;
     ros::Publisher pub_pose_debug;
     //ros::Publisher pup_cloud_cluster;
     //Server

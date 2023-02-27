@@ -1,5 +1,5 @@
 #request
-string base_frame
+string input
 ---
 #response
-nav_msgs/Odometry poseArray
+nav_msgs/Odometry[28] poseArray
