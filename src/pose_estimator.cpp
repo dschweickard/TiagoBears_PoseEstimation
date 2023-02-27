@@ -273,9 +273,9 @@ void PoseEstimator::pcl_callback(const pcl::PCLPointCloud2ConstPtr& msg_cloud){
 
     std::vector<pcl::PointIndices> cluster_indices;
     pcl::EuclideanClusterExtraction<pcl::PointXYZ> ece;
-    ece.setClusterTolerance (0.005f); //cluster_tolerance 
-    ece.setMinClusterSize (150); //cluster_min_size
-    ece.setMaxClusterSize (1500); //cluster_max_size
+    ece.setClusterTolerance (0.003f); //cluster_tolerance 
+    ece.setMinClusterSize (200); //cluster_min_size
+    ece.setMaxClusterSize (1000); //cluster_max_size
     ece.setSearchMethod (tree);
     ece.setInputCloud (cloud_cubes);
     ece.extract (cluster_indices);
@@ -331,9 +331,9 @@ void PoseEstimator::pcl_callback(const pcl::PCLPointCloud2ConstPtr& msg_cloud){
 
     pcl::IterativeClosestPoint<pcl::PointXYZ, pcl::PointXYZ> icp;
     icp.setMaximumIterations (100000);
-    icp.setTransformationEpsilon (1e-9);
-    //icp.setMaxCorrespondenceDistance (0.003);
-    //icp.setRANSACOutlierRejectionThreshold (1.);tf2::
+    icp.setTransformationEpsilon (1e-12);
+    // icp.setMaxCorrespondenceDistance (0.005);
+    //icp.setRANSACOutlierRejectionThreshold (1.);
     
     std::vector <nav_msgs::Odometry> pose_vec;
     std::vector<nav_msgs::Odometry> estimated_pose_vec(28);
