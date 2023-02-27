@@ -144,7 +144,14 @@ std::vector<pcl::PointCloud<pcl::PointXYZ>::Ptr> SuperVoxelClustering (pcl::Poin
 // }
 
 
-
+void getMaxIndex(Eigen::Matrix3f &matrix){
+ //Eigen::MatrixXf::Index maxIndex;
+ Eigen::VectorXf maxVal = matrix.rowwise().maxCoeff();
+ float max = maxVal.maxCoeff();
+ //std::cout << "Maxima at positions " << endl;
+ //std::cout << maxIndex << std::endl;
+ //std::cout << "maxVal " << maxVal << endl; 
+}
 
 
 void PoseEstimator::pcl_callback(const pcl::PCLPointCloud2ConstPtr& msg_cloud){
@@ -330,10 +337,20 @@ void PoseEstimator::pcl_callback(const pcl::PCLPointCloud2ConstPtr& msg_cloud){
       
 
       tf2::Vector3 position_cube = tf2::Vector3(icp_transformation(0,3),icp_transformation(1,3),icp_transformation(2,3));
+      //Eigen::MatrixXf m(3,3);
+      Eigen::Matrix3f m;
+      m << icp_transformation(0,0),icp_transformation(0,1),icp_transformation(0,2),
+                                                                   icp_transformation(1,0),icp_transformation(1,1),icp_transformation(1,2),
+                                                                   icp_transformation(2,0),icp_transformation(2,1),icp_transformation(2,2);
+
+      std::cout << m << std::endl;
+
+      getMaxIndex(m);
 
       std::cout << " Position of cube x: " << icp_transformation(0,3) << std::endl;
       std::cout << "Position of cube y: " << icp_transformation(1,3) << std::endl;
       std::cout << "Position of cube z: " << icp_transformation(2,3) << std::endl;
+
 
       tf2::Matrix3x3 cube_rotation = tf2::Matrix3x3(icp_transformation(0,0),icp_transformation(0,1),icp_transformation(0,2),
                                                                    icp_transformation(1,0),icp_transformation(1,1),icp_transformation(1,2),
@@ -410,6 +427,18 @@ void PoseEstimator::pcl_callback(const pcl::PCLPointCloud2ConstPtr& msg_cloud){
 
 }
 
+tf2::Matrix3x3 correctCubeRotation (tf2::Matrix3x3 &matrix){
+  for(int i=0; i<3;i++){
+
+  }
+
+
+
+
+}
+
+
+//}
 // Create Service node
 // Refine Clustering
 // Probabilities
