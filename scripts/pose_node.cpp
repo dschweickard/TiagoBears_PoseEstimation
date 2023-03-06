@@ -2,6 +2,41 @@
 #include <TiagoBears_PoseEstimation/pose_estimator.h>
 #include <TiagoBears_PoseEstimation/PoseEstimation.h>
 
+
+ tf2::Matrix3x3 CorrectRotMatrix(tf2::Matrix3x3 &matrix){
+   // conver them to Eigen matrix
+   Eigen::MatrixXf eigenMatrix = Eigen::MatrixXf::Zero(3,3);
+   for (int i=0; i<3; i++){
+     for (int j=0; j<3; j++){
+       eigenMatrix(i,j) = matrix[i][j];
+     }
+   }
+   for (int i=0;i<3; i++){
+     // take a sub matrix with size (3-i)x(3-i)
+     Eigen::MatrixXf subMatrix = eigenMatrix.block(0,0,3-i,3-i);
+     // update the submatrix to have absolute values
+     subMatrix = subMatrix.cwiseAbs();
+     // find the max element in the sub matrix
+     int max_x, max_y;
+     float maxVal = subMatrix.maxCoeff(&max_x, &max_y);
+     // swap the rows and columns such that the max value is in (3-i), (3-i) position
+     eigenMatrix.row(2-i).swap(eigenMatrix.row(max_x));
+     eigenMatrix.col(2-i).swap(eigenMatrix.col(max_y));
+     // multipy the row with -1 if the max value is negative
+     if (eigenMatrix(2-i,2-i) < 0){
+       eigenMatrix.row(2-i) = -1 * eigenMatrix.row(2-i);
+     }
+   }
+   // convert back to tf2::Matrix3x3
+   for (int i=0; i<3; i++){
+     for (int j=0; j<3; j++){
+       matrix[i][j] = eigenMatrix(i,j);
+     }
+   }
+   return matrix;
+ }
+
+
 bool service_callback(TiagoBears_PoseEstimation::PoseEstimation::Request &req, TiagoBears_PoseEstimation::PoseEstimation::Response &res)
 {
   float leaf_size = 0.003f;
@@ -149,8 +184,9 @@ bool service_callback(TiagoBears_PoseEstimation::PoseEstimation::Request &req, T
   int i=0;
   for (auto& clouds : clusters_vec)
   {
-    icp.setInputSource (clouds);
-    icp.setInputTarget (model_cloud);
+    icp.setInputSource (model_cloud);
+    icp.setInputTarget (clouds);
+
     pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_icp(new pcl::PointCloud< pcl::PointXYZ>);
 
     icp.align (*cloud_icp);
@@ -172,16 +208,21 @@ bool service_callback(TiagoBears_PoseEstimation::PoseEstimation::Request &req, T
 
     geometry_msgs::TransformStamped estimated_pose;
 
-      //estimated_pose.header.frame_id = msg_cloud->header.frame_id;
-      //estimated_pose.header.seq = msg_cloud->header.seq;
     estimated_pose.header.frame_id = msg->header.frame_id;
     estimated_pose.header.seq = msg->header.seq;
     estimated_pose.transform.translation = tf2::toMsg(position_cube);
     estimated_pose.transform.rotation = tf2::toMsg(cube_orientation);
-
     geometry_msgs::TransformStamped  pose_transformed;
     cloudBuffer.transform(estimated_pose, pose_transformed,"base_footprint",ros::Duration(1.));
-    
+
+    // get the rotation matrix from the quaternion of pose_transformed
+    tf2::Quaternion q(pose_transformed.transform.rotation.x, pose_transformed.transform.rotation.y, pose_transformed.transform.rotation.z, pose_transformed.transform.rotation.w);
+    // quaternion to rotation matrix
+    tf2::Matrix3x3 m(q);
+    // correct the rotation matrix
+    tf2::Matrix3x3 m2 = CorrectRotMatrix(m);
+    m2.getRotation(cube_orientation);
+
     nav_msgs::Odometry pose_odometry;
     pose_odometry.header = pose_transformed.header;
     //pose_odometry.child_frame_id = pose_transformed.child_frame_id;
@@ -203,6 +244,7 @@ bool service_callback(TiagoBears_PoseEstimation::PoseEstimation::Request &req, T
 
     i++;
   }
+
   return true;
 
 }

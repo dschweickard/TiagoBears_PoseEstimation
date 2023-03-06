@@ -7,6 +7,8 @@
 #include<sstream>
 #include<vector>
 #include <boost/filesystem.hpp>
+#include <thread>
+
 // ROS headers
 #include <ros/ros.h>
 #include <nav_msgs/Odometry.h>
@@ -27,7 +29,6 @@
 #include <pcl/filters/voxel_grid.h>
 #include <pcl/io/ply_io.h>
 #include <pcl/registration/icp.h>
-//#include <pcl/visualization/pcl_visualizer.h>
 #include <pcl/filters/passthrough.h>
 #include <pcl/filters/filter.h>
 #include <pcl/sample_consensus/method_types.h>
@@ -60,9 +61,13 @@
 #include <pcl/segmentation/region_growing.h>
 #include <pcl/registration/sample_consensus_prerejective.h>
 #include <pcl/visualization/pcl_visualizer.h>
+#include <pcl/segmentation/supervoxel_clustering.h>
+#include <pcl/segmentation/lccp_segmentation.h>
+//#include <pcl/visualization/cloud_viewer.h>
 
+#include <vtkPolyLine.h>
 
-typedef pcl::PointCloud<pcl::PointXYZ> PointCloud;
+typedef pcl::PointCloud<pcl::PointXYZRGB> PointCloud;
 typedef pcl::PCLPointCloud2 PointCloud2;
 typedef int counter;
 // the class and functions prototypes

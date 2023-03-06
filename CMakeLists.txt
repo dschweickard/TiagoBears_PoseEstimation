@@ -14,6 +14,7 @@ find_package(catkin REQUIRED COMPONENTS
   tf2_ros 
 )
 
+find_package(PCL REQUIRED COMPONENTS common visualization io)
 
 add_message_files(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
   FILES
