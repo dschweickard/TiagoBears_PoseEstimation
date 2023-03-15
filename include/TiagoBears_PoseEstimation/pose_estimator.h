@@ -70,6 +70,7 @@
 typedef pcl::PointCloud<pcl::PointXYZRGB> PointCloud;
 typedef pcl::PCLPointCloud2 PointCloud2;
 typedef int counter;
+
 // the class and functions prototypes
 class PoseEstimator{
     // an array of publishers each of which publish the pose of a cube
