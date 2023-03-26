@@ -9,7 +9,12 @@ PoseEstimator::PoseEstimator(ros::NodeHandle n){
           sprintf(topic, "/cube_%d_odom", i);
           pose_publishers.push_back(n.advertise<nav_msgs::Odometry>(topic,1));
      }
-
+    ROS_INFO("I heard: [Publisher clouds]");
+    for(int j=0; j<28; j++){
+          char* topic;
+          sprintf(topic, "/cloud_cluster_%d", j);
+          cloud_publishers.push_back(n.advertise<sensor_msgs::PointCloud2>(topic,1));
+     }
     //pcl::io::loadPCDFile ("/meshs/cubeModel.pcd", blob);
     //ROS_INFO("I heard: [readPCD]");
     //pcl::fromPCLPointCloud2 (blob, cloud);
@@ -20,11 +25,11 @@ PoseEstimator::PoseEstimator(ros::NodeHandle n){
     point_cloud_subscriber=n.subscribe("/xtion/depth_registered/points", 1, &PoseEstimator::pcl_callback, this);
     //point_cloud_subscriber=n.subscribe("/bag/points", 1, &PoseEstimator::pcl_callback, this);
     
-    ROS_INFO("I heard: [Publisher1]");
+    //ROS_INFO("I heard: [Publisher1]");
     //pub_cloud_debug = n.advertise<sensor_msgs::PointCloud2>("CloudFiltered", 1);
-    ROS_INFO("I heard: [Publisher2]");
+    //ROS_INFO("I heard: [Publisher2]");
     //pub_pose_debug = n.advertise<nav_msgs::Odometry>("CubePose", 1);
-    ROS_INFO("I heard: [Publisher3]");
+    //ROS_INFO("I heard: [Publisher3]");
     //pub_icp_debug = n.advertise<sensor_msgs::PointCloud2>("CloudICP", 1);
     //pose_server = n.advertiseService("PoseEstimation", &PoseEstimator::service_callback,this);
 
@@ -74,20 +79,22 @@ std::vector<pcl::PointCloud<pcl::PointXYZRGB>::Ptr> EuclideanClustering (pcl::Po
 
 std::vector<pcl::PointCloud<pcl::PointXYZRGB>::Ptr> LCCP (pcl::PointCloud<pcl::PointXYZRGB>::Ptr& input_cloud){
 
-float voxel_resolution = 0.01f; //0.008f
-float seed_resolution = 0.1f;
-float color_importance = 0.2f;
-float spatial_importance = 2.0f;
-float normal_importance = 4.0f;
+float voxel_resolution = 0.0025f; //0.0025f
+float seed_resolution = 0.005f; //0.005f
+float color_importance = 0.5f;
+float spatial_importance = 0.1f;
+float normal_importance = 1.0f;
 
 
 // LCCP Segmentation
 float concavity_tolerance_threshold = 10;
-float smoothness_threshold = 0.1;
-std::uint32_t min_segment_size = 50;
+float smoothness_threshold = 0.1; //0.1
+std::uint32_t min_segment_size = 5;
 bool use_extended_convexity = false;
 bool use_sanity_criterion = false;
 int k_factor = 0;//1
+
+int th_points = 150;
 
 
 // // Split pointcloud to fit SuperVoxelClustering input format
@@ -109,11 +116,13 @@ super.setNormalImportance(normal_importance);
 std::map<std::uint32_t, pcl::Supervoxel<pcl::PointXYZRGB>::Ptr> supervoxel_clusters;
 PCL_INFO("Extracting supervoxels\n");
 super.extract(supervoxel_clusters);
-super.refineSupervoxels(3, supervoxel_clusters);
+super.refineSupervoxels(2, supervoxel_clusters);
 
 PCL_INFO("Getting supervoxel adjacency\n");
 std::multimap<std::uint32_t, std::uint32_t> supervoxel_adjacency;
 super.getSupervoxelAdjacency(supervoxel_adjacency);
+
+pcl::PointCloud<pcl::PointXYZL>::Ptr labeled_voxel_cloud = super.getLabeledVoxelCloud ();
 
 
 /// Get the cloud of supervoxel centroid with normals and the colored cloud with supervoxel coloring (this is used for visulization)
@@ -136,7 +145,7 @@ lccp.relabelCloud(*lccp_labeled_cloud);
 pcl::LCCPSegmentation<pcl::PointXYZRGB>::SupervoxelAdjacencyList sv_adjacency_list;
 lccp.getSVAdjacencyList (sv_adjacency_list);
 
-pcl::PCLPointCloud2 output_label_cloud2;
+//pcl::PCLPointCloud2 output_label_cloud2;
 //pcl::toPCLPointCloud2 (*lccp_labeled_cloud, output_label_cloud2);
 if (lccp_labeled_cloud->size () == cloud_RGB->size ())
   {
@@ -154,8 +163,8 @@ if (lccp_labeled_cloud->size () == cloud_RGB->size ())
 // ROS_INFO_STREAM(":Size Cluster1 PointCloud  " << cloud_cluster1->size());
 // cloud_cluster1->header.frame_id = input_cloud->header.frame_id;
 
-std::vector<pcl::PointCloud<pcl::PointXYZRGB>::Ptr> object_vec;
-object_vec.resize(0);
+std::vector<pcl::PointCloud<pcl::PointXYZRGB>> object_vec;
+//object_vec.resize(0);
 
 PCL_INFO("Resize 0\n");
 
@@ -166,29 +175,46 @@ for (int i = 0; i < lccp_labeled_cloud->points.size(); ++i)
 
   if(idx >= object_vec.size()) 
     object_vec.resize(idx+1);
-    PCL_INFO("Resize 1\n");
+    //PCL_INFO("Resize 1\n");
 
   pcl::PointXYZRGB temp_point;
-  PCL_INFO("try access\n");
+  //PCL_INFO("try access\n");
   temp_point = cloud_RGB->points.at(i);
-  PCL_INFO("Saved temp point\n");
-  object_vec.at(idx)->points.push_back(temp_point);
+  //PCL_INFO("Saved temp point\n");
+  object_vec.at(idx).points.push_back(temp_point);
 
-  PCL_INFO("pushed point\n");
+  //PCL_INFO("pushed point\n");
 } 
 
  std::cout << "LCCP Cluster size:" << object_vec.size() << std::endl;
 
+
 //pcl::toPCLPointCloud2 (*cloud_cluster1, output_label_cloud2);
 std::vector<pcl::PointCloud<pcl::PointXYZRGB>::Ptr> output_vec;
+
 for (int j =0; j < object_vec.size(); j++)
 {
-  //output_vec->push_back(object_vec.at(j));
-  object_vec.at(j)->header.frame_id = input_cloud->header.frame_id;
+
+  object_vec.at(j).header.frame_id = input_cloud->header.frame_id;
+  if (object_vec.at(j).size() > th_points){
+    pcl::PointCloud<pcl::PointXYZRGB>::Ptr object =  object_vec.at(j).makeShared();
+    output_vec.push_back(object);
+  }
+
 }
 
+// int th_points = 50;
+// int object_number = output_vec.size();
+
+// for (int k=0; k<object_number, k++){
+//   if (output_vec.at(k)->size() < th_points){
+//     output_vec.erase(k);
+//   }
+// }
+
 //return output_label_cloud2;
-return object_vec;
+//return object_vec;
+return output_vec;
 }
 
 
@@ -230,6 +256,144 @@ tf2::Matrix3x3 CorrectRotationMatrix(tf2::Matrix3x3 &matrix){
 }
 
 
+
+std::vector<nav_msgs::Odometry> estimatePose( std::vector<pcl::PointCloud<pcl::PointXYZRGB>::Ptr>& clustered_cloud, pcl::PointCloud<pcl::PointXYZRGB>::Ptr& model_object)
+{
+
+std::vector<nav_msgs::Odometry> estimated_pose_vec(28);
+
+float leaf = 0.01f;
+
+pcl::NormalEstimationOMP<pcl::PointXYZRGB,pcl::Normal> nest;
+nest.setRadiusSearch (0.005);
+
+pcl::PointCloud<pcl::Normal>::Ptr model_object_normals (new pcl::PointCloud<pcl::Normal>);
+nest.setInputCloud (model_object);
+nest.compute (*model_object_normals);
+
+
+pcl::FPFHEstimationOMP<pcl::PointXYZRGB,pcl::Normal, pcl::FPFHSignature33> fest;
+fest.setRadiusSearch (0.025);
+
+pcl::PointCloud<pcl::FPFHSignature33>::Ptr model_object_features (new pcl::PointCloud<pcl::FPFHSignature33>);
+fest.setInputCloud (model_object);
+fest.setInputNormals (model_object_normals);
+fest.compute (*model_object_features);
+
+
+pcl::SampleConsensusPrerejective<pcl::PointXYZRGB,pcl::PointXYZRGB,pcl::FPFHSignature33> align;
+align.setMaximumIterations (50000); // Number of RANSAC iterations
+align.setNumberOfSamples (3); // Number of points to sample for generating/prerejecting a pose
+align.setCorrespondenceRandomness (5); // Number of nearest features to use
+align.setSimilarityThreshold (0.95f); // Polygonal edge length similarity threshold
+align.setMaxCorrespondenceDistance (2.5f * leaf); // Inlier threshold
+align.setInlierFraction (0.25f); // Required inlier fraction for accepting a pose hypothesis
+
+
+pcl::IterativeClosestPoint<pcl::PointXYZRGB, pcl::PointXYZRGB> icp;
+icp.setMaximumIterations (1000000);
+icp.setTransformationEpsilon (1e-12);
+
+tf2_ros::Buffer cloudBuffer;
+geometry_msgs::TransformStamped transformStampedICPPose;
+tf2_ros::TransformListener tfListenerCloud(cloudBuffer);
+
+int j = 0;
+
+for (auto& cluster : clustered_cloud){
+
+  pcl::PointCloud<pcl::Normal>::Ptr cluster_normals (new pcl::PointCloud<pcl::Normal>);
+  nest.setInputCloud (cluster);
+  nest.compute (*cluster_normals);
+
+  pcl::PointCloud<pcl::FPFHSignature33>::Ptr cluster_features (new pcl::PointCloud<pcl::FPFHSignature33>);
+  fest.setInputCloud (cluster);
+  fest.setInputNormals (cluster_normals);
+  fest.compute (*cluster_features);
+
+  // Perform alignment
+
+  align.setInputSource (model_object);
+  align.setSourceFeatures (model_object_features);
+  align.setInputTarget (cluster);
+  align.setTargetFeatures (cluster_features);
+
+  pcl::PointCloud<pcl::PointXYZRGB>::Ptr model_object_aligned (new pcl::PointCloud<pcl::PointXYZRGB>);
+
+  align.align (*model_object_aligned);
+
+  Eigen::Matrix4f transformation_guess = align.getFinalTransformation ();
+
+  icp.setInputSource (model_object);
+  icp.setInputTarget (cluster);
+
+  pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_icp(new pcl::PointCloud< pcl::PointXYZRGB>);
+
+  icp.align (*model_object_aligned,transformation_guess);
+
+  double score = icp.getFitnessScore();
+  std::cout << "has converged:" << icp.hasConverged() << " score: " << icp.getFitnessScore() << std::endl;
+  Eigen::Matrix4f icp_transformation = icp.getFinalTransformation ();
+
+
+  tf2::Vector3 position_cube = tf2::Vector3(icp_transformation(0,3),icp_transformation(1,3),icp_transformation(2,3));
+
+  tf2::Matrix3x3 cube_rotation = tf2::Matrix3x3(icp_transformation(0,0),icp_transformation(0,1),icp_transformation(0,2),
+                                                                icp_transformation(1,0),icp_transformation(1,1),icp_transformation(1,2),
+                                                                icp_transformation(2,0),icp_transformation(2,1),icp_transformation(2,2));
+
+  tf2::Quaternion cube_orientation;
+  cube_rotation.getRotation(cube_orientation); 
+
+  geometry_msgs::TransformStamped estimated_pose;
+
+
+  estimated_pose.header.frame_id = cluster->header.frame_id;
+  estimated_pose.header.seq = cluster->header.seq;
+  estimated_pose.transform.translation = tf2::toMsg(position_cube);
+  estimated_pose.transform.rotation = tf2::toMsg(cube_orientation);
+
+  geometry_msgs::TransformStamped  pose_transformed;
+  cloudBuffer.transform(estimated_pose, pose_transformed,"base_footprint",ros::Duration(1.));
+
+  // get the rotation matrix from the quaternion of pose_transformed
+  tf2::Quaternion q(pose_transformed.transform.rotation.x, pose_transformed.transform.rotation.y, pose_transformed.transform.rotation.z, pose_transformed.transform.rotation.w);
+  // quaternion to rotation matrix
+  tf2::Matrix3x3 m(q);
+  // correct the rotation matrix
+  tf2::Matrix3x3 m2 = CorrectRotationMatrix(m);
+  m2.getRotation(cube_orientation);
+
+  nav_msgs::Odometry pose_odometry;
+  pose_odometry.header = pose_transformed.header;
+  pose_odometry.header.frame_id = "base_footprint";
+  //pose_odometry.child_frame_id = pose_transformed.child_frame_id;
+  pose_odometry.pose.pose.position.x = pose_transformed.transform.translation.x;
+  pose_odometry.pose.pose.position.y = pose_transformed.transform.translation.y;
+  pose_odometry.pose.pose.position.z = pose_transformed.transform.translation.z;
+  pose_odometry.pose.pose.orientation = tf2::toMsg(cube_orientation);
+
+
+  //std::cout << " x: " << pose_odometry.pose.pose.position.x << std::endl;
+  //std::cout << " y: " << pose_odometry.pose.pose.position.y << std::endl;
+  //std::cout << " z: " << pose_odometry.pose.pose.position.z << std::endl;
+
+
+  estimated_pose_vec.at(j) = pose_odometry;
+
+  j++;
+} 
+
+
+
+return estimated_pose_vec;
+
+}
+
+
+
+
+
 void PoseEstimator::pcl_callback(const pcl::PCLPointCloud2ConstPtr& msg_cloud){
     
 
@@ -243,13 +407,12 @@ void PoseEstimator::pcl_callback(const pcl::PCLPointCloud2ConstPtr& msg_cloud){
     pcl::io::loadPCDFile ("src/TiagoBears_PoseEstimation/models/cube.pcd", cloud_blob);
     pcl::fromPCLPointCloud2 (cloud_blob, *model_cloud); //* convert from pcl/PCLPointCloud2 to pcl::PointCloud<T>
     
-    ROS_INFO_STREAM(":Size model PointCloud  " << model_cloud->size());
 
     //pub_model_cloud.publish(cloud_blob);
-    //pcl::PointCloud<pcl::PointXYZRGB> scene_cloud;
-    //pcl::io::loadPCDFile ("src/TiagoBears_PoseEstimation/robot_scene.pcd", scene_cloud);
-    //scene_cloud.header.frame_id = msg_cloud->header.frame_id;
-    
+    pcl::PointCloud<pcl::PointXYZRGB> scene_cloud;
+    pcl::io::loadPCDFile ("src/TiagoBears_PoseEstimation/robot_scene.pcd", scene_cloud);
+    scene_cloud.header.frame_id = msg_cloud->header.frame_id;
+    //pub_cloud_debug.publish(scene_cloud);
     // pub_icp_debug.publish(scene_cloud);
 
 
@@ -261,9 +424,11 @@ void PoseEstimator::pcl_callback(const pcl::PCLPointCloud2ConstPtr& msg_cloud){
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_filterd_vox(new pcl::PointCloud< pcl::PointXYZRGB>);
 
     // Convert from PointCloud2 to PointCloud
-    pcl::fromPCLPointCloud2 (*msg_cloud, *msg_cloud_pcl);
-    //pcl::copyPointCloud(scene_cloud, *msg_cloud_pcl);
-
+    //pcl::fromPCLPointCloud2 (*msg_cloud, *msg_cloud_pcl);
+    
+    pcl::copyPointCloud(scene_cloud, *msg_cloud_pcl);
+     
+    //pcl::copyPointCloud(scene_cloud, *cloud_filterd_vox); 
 
     ROS_INFO_STREAM(":Size Input PointCloud  " << msg_cloud_pcl->size());
 
@@ -271,12 +436,15 @@ void PoseEstimator::pcl_callback(const pcl::PCLPointCloud2ConstPtr& msg_cloud){
 
     pcl::VoxelGrid<pcl::PointXYZRGB> vox;
     vox.setInputCloud (msg_cloud_pcl);
-    vox.setLeafSize (0.0025f, 0.0025f, 0.0025f);
+    vox.setLeafSize (0.002f, 0.002f, 0.002f);
     vox.filter (*cloud_filterd_vox);
+    
+    vox.setInputCloud(model_cloud);
+    vox.filter(*model_cloud);
 
     ROS_INFO_STREAM(":Size voxel filtered PointCloud  " << cloud_filterd_vox->size());
     
-    
+    ROS_INFO_STREAM(":Size model PointCloud  " << model_cloud->size());
 
     
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_cropped(new pcl::PointCloud< pcl::PointXYZRGB>);
@@ -343,15 +511,25 @@ void PoseEstimator::pcl_callback(const pcl::PCLPointCloud2ConstPtr& msg_cloud){
 
     
     std::vector<pcl::PointCloud<pcl::PointXYZRGB>::Ptr> clusters_vec;
-    clusters_vec = EuclideanClustering(cloud_cubes);
+    //clusters_vec = EuclideanClustering(cloud_cubes);
 
     //std::vector<pcl::PointCloud<pcl::PointXYZRGB>::Ptr> clusters_vec;
-    //clusters_vec = LCCP(cloud_cubes);
+    clusters_vec = LCCP(cloud_cubes);
 
-
+    //pub_cloud_debug.publish(clusters_vec.at(1));
+    for(int i=0; i<clusters_vec.size();++i){
+      cloud_publishers[i].publish(clusters_vec[i]);
+    } 
     //clusters_vec = RegionGrowingClustering (cloud_cubes);
     ROS_INFO_STREAM("Size of pc2_clusters: " << clusters_vec.size());
+    
+    std::vector<nav_msgs::Odometry> estimated_pose_vec(28);
 
+    estimated_pose_vec = estimatePose(clusters_vec, model_cloud);
+
+    for(int i=0; i<estimated_pose_vec.size();++i){
+      pose_publishers[i].publish(estimated_pose_vec[i]);
+    }
 
     //sensor_msgs::PointCloud2::Ptr cluster_out(new sensor_msgs::PointCloud2);
     //pcl::PointCloud<pcl::PointXYZ>::Ptr cluster_out(new pcl::PointCloud<pcl::PointXYZ>);
@@ -385,7 +563,7 @@ void PoseEstimator::pcl_callback(const pcl::PCLPointCloud2ConstPtr& msg_cloud){
     //icp.setRANSACOutlierRejectionThreshold (1.);
     
     std::vector <nav_msgs::Odometry> pose_vec;
-    std::vector<nav_msgs::Odometry> estimated_pose_vec(28);
+
 
     int i=0;
     for (auto& clouds : clusters_vec)
@@ -410,8 +588,8 @@ void PoseEstimator::pcl_callback(const pcl::PCLPointCloud2ConstPtr& msg_cloud){
       //std::cout << " Prob: " << prob_vec.at(i) << std::endl;
       
       
-
       tf2::Vector3 position_cube = tf2::Vector3(icp_transformation(0,3),icp_transformation(1,3),icp_transformation(2,3));
+      
       //Eigen::MatrixXf m(3,3);
       // Eigen::Matrix3f m;
       // m << icp_transformation(0,0),icp_transformation(0,1),icp_transformation(0,2),
@@ -489,34 +667,27 @@ void PoseEstimator::pcl_callback(const pcl::PCLPointCloud2ConstPtr& msg_cloud){
       pose_odometry.pose.pose.position.z = pose_transformed.transform.translation.z;
       pose_odometry.pose.pose.orientation = tf2::toMsg(cube_orientation);
 
-      std::cout << " x: " << pose_odometry.pose.pose.position.x << std::endl;
-      std::cout << " y: " << pose_odometry.pose.pose.position.y << std::endl;
-      std::cout << " z: " << pose_odometry.pose.pose.position.z << std::endl;
+      //std::cout << " x: " << pose_odometry.pose.pose.position.x << std::endl;
+      //std::cout << " y: " << pose_odometry.pose.pose.position.y << std::endl;
+      //std::cout << " z: " << pose_odometry.pose.pose.position.z << std::endl;
 
 
-      estimated_pose_vec.at(i) = pose_odometry;
+      //estimated_pose_vec.at(i) = pose_odometry;
 
       pose_vec.push_back(pose_odometry);
 
       i++;
     }
-    int minElementIndex = std::max_element(score_vec.begin(),score_vec.end()) - score_vec.begin();
-    std::cout << "minElementIndex:" << minElementIndex << std::endl;
+
+    //int minElementIndex = std::max_element(score_vec.begin(),score_vec.end()) - score_vec.begin();
+    //std::cout << "minElementIndex:" << minElementIndex << std::endl;
+    
     //pub_pose_debug.publish(pose_vec.at(minElementIndex));
     //pub_icp_debug.publish(clusters_vec.at(minElementIndex));
 
-    for(int i=0; i<pose_vec.size();++i){
-      pose_publishers[i].publish(pose_vec[i]);
-    }
+    //for(int i=0; i<pose_vec.size();++i){
+    //  pose_publishers[i].publish(pose_vec[i]);
+    //}
 
 }
-
-
-//}
-// Create Service node
-// Refine Clustering
-// Probabilities
-// Check free space
-// 
-
 

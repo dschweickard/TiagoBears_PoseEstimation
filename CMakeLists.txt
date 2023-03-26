@@ -12,6 +12,7 @@ find_package(catkin REQUIRED COMPONENTS
   nav_msgs
   tf2
   tf2_ros 
+  
 )
 
 find_package(PCL REQUIRED COMPONENTS common visualization io)

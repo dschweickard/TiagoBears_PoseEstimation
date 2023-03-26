@@ -63,6 +63,8 @@
 #include <pcl/visualization/pcl_visualizer.h>
 #include <pcl/segmentation/supervoxel_clustering.h>
 #include <pcl/segmentation/lccp_segmentation.h>
+#include <pcl/features/fpfh_omp.h>
+
 //#include <pcl/visualization/cloud_viewer.h>
 
 #include <vtkPolyLine.h>
@@ -75,6 +77,7 @@ typedef int counter;
 class PoseEstimator{
     // an array of publishers each of which publish the pose of a cube
     std::vector<ros::Publisher> pose_publishers;
+    std::vector<ros::Publisher> cloud_publishers;
     // a subscriber to get the point cloudS
     ros::Subscriber point_cloud_subscriber;
     // point cloud cache
