@@ -5,16 +5,17 @@ PoseEstimator::PoseEstimator(ros::NodeHandle n){
     ROS_INFO("I heard: [constructor]");
     // initialize the publishers
     for(int i=0; i<28; i++){
+    
           char* topic;
           sprintf(topic, "/cube_%d_odom", i);
           pose_publishers.push_back(n.advertise<nav_msgs::Odometry>(topic,1));
-     }
+    }
     ROS_INFO("I heard: [Publisher clouds]");
     for(int j=0; j<28; j++){
-          char* topic;
-          sprintf(topic, "/cloud_cluster_%d", j);
-          cloud_publishers.push_back(n.advertise<sensor_msgs::PointCloud2>(topic,1));
-     }
+           char* topic;
+           sprintf(topic, "/cloud_cluster_%d", j);
+           cloud_publishers.push_back(n.advertise<sensor_msgs::PointCloud2>(topic,1));
+    }
     //pcl::io::loadPCDFile ("/meshs/cubeModel.pcd", blob);
     //ROS_INFO("I heard: [readPCD]");
     //pcl::fromPCLPointCloud2 (blob, cloud);
@@ -28,7 +29,8 @@ PoseEstimator::PoseEstimator(ros::NodeHandle n){
     //ROS_INFO("I heard: [Publisher1]");
     //pub_cloud_debug = n.advertise<sensor_msgs::PointCloud2>("CloudFiltered", 1);
     //ROS_INFO("I heard: [Publisher2]");
-    //pub_pose_debug = n.advertise<nav_msgs::Odometry>("CubePose", 1);
+    
+    //pub_pose_debug = n.advertise<nav_msgs::Odometry>("PlanePose", 1);
     //ROS_INFO("I heard: [Publisher3]");
     //pub_icp_debug = n.advertise<sensor_msgs::PointCloud2>("CloudICP", 1);
     //pose_server = n.advertiseService("PoseEstimation", &PoseEstimator::service_callback,this);
@@ -145,28 +147,10 @@ lccp.relabelCloud(*lccp_labeled_cloud);
 pcl::LCCPSegmentation<pcl::PointXYZRGB>::SupervoxelAdjacencyList sv_adjacency_list;
 lccp.getSVAdjacencyList (sv_adjacency_list);
 
-//pcl::PCLPointCloud2 output_label_cloud2;
-//pcl::toPCLPointCloud2 (*lccp_labeled_cloud, output_label_cloud2);
-if (lccp_labeled_cloud->size () == cloud_RGB->size ())
-  {
-    PCL_INFO("CLouds have same size\n");
-    //pcl::io::savePCDFile ("lccp_out_2.pcd", *lccp_labeled_cloud);
-  }
-
-// pcl::PointCloud<pcl::PointXYZL>::Ptr cloud_cluster1 (new pcl::PointCloud<pcl::PointXYZL>);
-// for (int ii = 0; ii < lccp_labeled_cloud->points.size (); ++ii){
-// if (lccp_labeled_cloud->points[ii].label == 1)
-// {
-//   cloud_cluster1->push_back(lccp_labeled_cloud->points[ii]);
-// }
-// }
-// ROS_INFO_STREAM(":Size Cluster1 PointCloud  " << cloud_cluster1->size());
-// cloud_cluster1->header.frame_id = input_cloud->header.frame_id;
-
 std::vector<pcl::PointCloud<pcl::PointXYZRGB>> object_vec;
 //object_vec.resize(0);
 
-PCL_INFO("Resize 0\n");
+//PCL_INFO("Resize 0\n");
 
 for (int i = 0; i < lccp_labeled_cloud->points.size(); ++i)
 {
@@ -203,17 +187,6 @@ for (int j =0; j < object_vec.size(); j++)
 
 }
 
-// int th_points = 50;
-// int object_number = output_vec.size();
-
-// for (int k=0; k<object_number, k++){
-//   if (output_vec.at(k)->size() < th_points){
-//     output_vec.erase(k);
-//   }
-// }
-
-//return output_label_cloud2;
-//return object_vec;
 return output_vec;
 }
 
@@ -264,10 +237,14 @@ std::vector<nav_msgs::Odometry> estimated_pose_vec(28);
 
 float leaf = 0.01f;
 
+pcl::search::KdTree<pcl::PointXYZRGB>::Ptr tree (new pcl::search::KdTree<pcl::PointXYZRGB>);
+
 pcl::NormalEstimationOMP<pcl::PointXYZRGB,pcl::Normal> nest;
 nest.setRadiusSearch (0.005);
 
 pcl::PointCloud<pcl::Normal>::Ptr model_object_normals (new pcl::PointCloud<pcl::Normal>);
+tree->setInputCloud(model_object);
+nest.setSearchMethod(tree);
 nest.setInputCloud (model_object);
 nest.compute (*model_object_normals);
 
@@ -295,7 +272,6 @@ icp.setMaximumIterations (1000000);
 icp.setTransformationEpsilon (1e-12);
 
 tf2_ros::Buffer cloudBuffer;
-geometry_msgs::TransformStamped transformStampedICPPose;
 tf2_ros::TransformListener tfListenerCloud(cloudBuffer);
 
 int j = 0;
@@ -303,6 +279,8 @@ int j = 0;
 for (auto& cluster : clustered_cloud){
 
   pcl::PointCloud<pcl::Normal>::Ptr cluster_normals (new pcl::PointCloud<pcl::Normal>);
+  tree->setInputCloud(cluster);
+  nest.setSearchMethod(tree);
   nest.setInputCloud (cluster);
   nest.compute (*cluster_normals);
 
@@ -333,9 +311,9 @@ for (auto& cluster : clustered_cloud){
 
   double score = icp.getFitnessScore();
   std::cout << "has converged:" << icp.hasConverged() << " score: " << icp.getFitnessScore() << std::endl;
-  Eigen::Matrix4f icp_transformation = icp.getFinalTransformation ();
+  //Eigen::Matrix4f icp_transformation = icp.getFinalTransformation ();
 
-
+  Eigen::Matrix4f icp_transformation = transformation_guess;
   tf2::Vector3 position_cube = tf2::Vector3(icp_transformation(0,3),icp_transformation(1,3),icp_transformation(2,3));
 
   tf2::Matrix3x3 cube_rotation = tf2::Matrix3x3(icp_transformation(0,0),icp_transformation(0,1),icp_transformation(0,2),
@@ -391,9 +369,6 @@ return estimated_pose_vec;
 }
 
 
-
-
-
 void PoseEstimator::pcl_callback(const pcl::PCLPointCloud2ConstPtr& msg_cloud){
     
 
@@ -404,14 +379,14 @@ void PoseEstimator::pcl_callback(const pcl::PCLPointCloud2ConstPtr& msg_cloud){
     ROS_INFO_STREAM("FrameID  " << msg_cloud->header.frame_id);
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr model_cloud (new pcl::PointCloud<pcl::PointXYZRGB>);
     pcl::PCLPointCloud2 cloud_blob;
-    pcl::io::loadPCDFile ("src/TiagoBears_PoseEstimation/models/cube.pcd", cloud_blob);
+    pcl::io::loadPCDFile ("src/TiagoBears_PoseEstimation/models/cubeModel3.pcd", cloud_blob);
     pcl::fromPCLPointCloud2 (cloud_blob, *model_cloud); //* convert from pcl/PCLPointCloud2 to pcl::PointCloud<T>
     
 
     //pub_model_cloud.publish(cloud_blob);
-    pcl::PointCloud<pcl::PointXYZRGB> scene_cloud;
-    pcl::io::loadPCDFile ("src/TiagoBears_PoseEstimation/robot_scene.pcd", scene_cloud);
-    scene_cloud.header.frame_id = msg_cloud->header.frame_id;
+    //pcl::PointCloud<pcl::PointXYZRGB> scene_cloud;
+    //pcl::io::loadPCDFile ("src/TiagoBears_PoseEstimation/robot_scene.pcd", scene_cloud);
+    //scene_cloud.header.frame_id = msg_cloud->header.frame_id;
     //pub_cloud_debug.publish(scene_cloud);
     // pub_icp_debug.publish(scene_cloud);
 
@@ -424,9 +399,9 @@ void PoseEstimator::pcl_callback(const pcl::PCLPointCloud2ConstPtr& msg_cloud){
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_filterd_vox(new pcl::PointCloud< pcl::PointXYZRGB>);
 
     // Convert from PointCloud2 to PointCloud
-    //pcl::fromPCLPointCloud2 (*msg_cloud, *msg_cloud_pcl);
+    pcl::fromPCLPointCloud2 (*msg_cloud, *msg_cloud_pcl);
     
-    pcl::copyPointCloud(scene_cloud, *msg_cloud_pcl);
+    //pcl::copyPointCloud(scene_cloud, *msg_cloud_pcl);
      
     //pcl::copyPointCloud(scene_cloud, *cloud_filterd_vox); 
 
@@ -489,11 +464,17 @@ void PoseEstimator::pcl_callback(const pcl::PCLPointCloud2ConstPtr& msg_cloud){
     // Get points associated with planar surface
     extract.filter (*cloud_plane);
 
+
     // Remove the planar inliers and extract rest
     extract.setNegative (true);
     extract.filter (*cloud_seg);
     
 
+
+
+
+    
+    
     ROS_INFO_STREAM(":Size PointCLoud of cubes  " << cloud_seg->size());
     //SuperVoxelClustering(cloud_seg);
 
@@ -508,8 +489,10 @@ void PoseEstimator::pcl_callback(const pcl::PCLPointCloud2ConstPtr& msg_cloud){
     sor.setStddevMulThresh (1.0);
     sor.filter (*cloud_cubes);
     //pub_cloud_debug.publish(cloud_cubes);
+    sor.setInputCloud(cloud_plane);
+    sor.filter(*cloud_plane);
 
-    
+
     std::vector<pcl::PointCloud<pcl::PointXYZRGB>::Ptr> clusters_vec;
     //clusters_vec = EuclideanClustering(cloud_cubes);
 
@@ -520,35 +503,92 @@ void PoseEstimator::pcl_callback(const pcl::PCLPointCloud2ConstPtr& msg_cloud){
     for(int i=0; i<clusters_vec.size();++i){
       cloud_publishers[i].publish(clusters_vec[i]);
     } 
+    
+    
     //clusters_vec = RegionGrowingClustering (cloud_cubes);
     ROS_INFO_STREAM("Size of pc2_clusters: " << clusters_vec.size());
     
     std::vector<nav_msgs::Odometry> estimated_pose_vec(28);
 
-    estimated_pose_vec = estimatePose(clusters_vec, model_cloud);
+    //estimated_pose_vec = estimatePose(clusters_vec, model_cloud);
 
-    for(int i=0; i<estimated_pose_vec.size();++i){
-      pose_publishers[i].publish(estimated_pose_vec[i]);
-    }
+    //for(int i=0; i<estimated_pose_vec.size();++i){
+    //  pose_publishers[i].publish(estimated_pose_vec[i]);
+    //}
 
     //sensor_msgs::PointCloud2::Ptr cluster_out(new sensor_msgs::PointCloud2);
     //pcl::PointCloud<pcl::PointXYZ>::Ptr cluster_out(new pcl::PointCloud<pcl::PointXYZ>);
     //*cluster_out = *clusters.at(3);
     //ROS_INFO_STREAM("Size of pointcloud: " << cluster_out->size());
+
     
     //ROS_INFO_STREAM("Size of pc2_clusters: " << cluster_out.);
 
-
+    //listener.lookupTransform("base_footprint", msg_cloud->header.frame_id, ros::Time(0), transform);  
     
+    //pcl_ros::transformPointCloud(*cloud_plane,*cloud_transformed,transform);
+    //pub_cloud_debug.publish(cloud_transformed);
     //tf2_ros::Buffer tfBuffer;
     //tf2_ros::TransformListener tfListener(tfBuffer);
-    //geometry_msgs::TransformStamped transformStamped;
+    //geometry_msgs::TransformStamped transStamped;
 
+    // sensor_msgs::PointCloud2 cloud_transformed;
+    // sensor_msgs::PointCloud2 msg_cloud_2;
+    // pcl::toROSMsg(*msg_cloud_pcl,msg_cloud_2);
 
     tf2_ros::Buffer cloudBuffer;
-    geometry_msgs::TransformStamped transformStampedICPPose;
-    tf2_ros::TransformListener tfListenerCloud(cloudBuffer);
+    //tf2_ros::TransformListener tfListenerCloud(cloudBuffer);
+      //ROS_INFO("I heard: [Set up tf]");
 
+    //const auto scan_tf = cloudBuffer.lookupTransform("base_footprint",msg_cloud->header.frame_id, ros::Time(0));
+    
+    //Eigen::Matrix4f trans_mat = tf2::transformToEigen(scan_tf.transform).matrix();
+    
+    //pcl_ros::transformPointCloud(trans_mat, msg_cloud_2,cloud_transformed);
+
+    //pub_cloud_debug.publish(cloud_transformed);
+    //cloudBuffer.transform(msg_cloud, cloud_transformed, "base_footprint",ros::Duration(1.));
+        //ROS_INFO("I heard: [cloud transformed]");
+
+    // pcl::PointXYZRGB minPt, maxPt;
+    // pcl::getMinMax3D (*cloud_plane, minPt, maxPt);
+
+    // std::cout << "Max x: " << maxPt.x << std::endl;
+    // std::cout << "Max y: " << maxPt.y << std::endl;
+    // std::cout << "Max z: " << maxPt.z << std::endl;
+    // std::cout << "Min x: " << minPt.x << std::endl;
+    // std::cout << "Min y: " << minPt.y << std::endl;
+    // std::cout << "Min z: " << minPt.z << std::endl;
+    
+    // tf2::Vector3 position_corner_point = tf2::Vector3(minPt.x, minPt.y, minPt.z);
+    // tf2::Quaternion orientation_corner_point = tf2::Quaternion(0.,0.,0.,0.);
+
+
+
+
+    // geometry_msgs::TransformStamped estimated_corner_point;
+    // estimated_corner_point.header.frame_id = cloud_plane->header.frame_id;
+    // estimated_corner_point.header.seq = cloud_plane->header.seq;
+    // estimated_corner_point.transform.translation = tf2::toMsg(position_corner_point);
+    // estimated_corner_point.transform.rotation = tf2::toMsg(orientation_corner_point);
+
+    // geometry_msgs::TransformStamped  pose_corner_transformed;
+    // cloudBuffer.transform(estimated_corner_point, pose_corner_transformed,"base_footprint");
+
+    // nav_msgs::Odometry pose_corner_odometry;
+    // pose_corner_odometry.header = pose_corner_transformed.header;
+    // pose_corner_odometry.header.frame_id = "base_footprint";
+    // pose_corner_odometry.pose.pose.position.x = pose_corner_transformed.transform.translation.x;
+    // pose_corner_odometry.pose.pose.position.y = pose_corner_transformed.transform.translation.y;
+    // pose_corner_odometry.pose.pose.position.z = pose_corner_transformed.transform.translation.z;
+    // //pose_corner_odometry.pose.pose.position.z = 0.37;
+    // pose_corner_odometry.pose.pose.orientation = tf2::toMsg(orientation_corner_point);
+
+    // ROS_INFO_STREAM("Corner: " << pose_corner_odometry);
+
+    // pub_cloud_debug.publish(cloud_plane);
+    
+    // pub_pose_debug.publish(pose_corner_odometry);
 
     //ICP
     //std::vector<double> score_vec(28, 0.0);
@@ -558,9 +598,7 @@ void PoseEstimator::pcl_callback(const pcl::PCLPointCloud2ConstPtr& msg_cloud){
     pcl::IterativeClosestPoint<pcl::PointXYZRGB, pcl::PointXYZRGB> icp;
     icp.setMaximumIterations (1000000);
     icp.setTransformationEpsilon (1e-12);
-    //icp.//
-    // icp.setMaxCorrespondenceDistance (0.005);
-    //icp.setRANSACOutlierRejectionThreshold (1.);
+
     
     std::vector <nav_msgs::Odometry> pose_vec;
 
@@ -573,12 +611,7 @@ void PoseEstimator::pcl_callback(const pcl::PCLPointCloud2ConstPtr& msg_cloud){
       //icp.setInputSource (clouds);
       //icp.setInputTarget (model_cloud);
       pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_icp(new pcl::PointCloud< pcl::PointXYZRGB>);
-      //const Eigen::Matrix4f init_guess;
-      // init_guess << 0., 0.,0.,0.,
-      //               0.,0.,0.,0.,
-      //               0.,0.,0.,0.,
-      //               0.,0.,0.,0.;
-      //icp.computeTransformation(*cloud_icp, init_guess);
+
       icp.align (*cloud_icp);
       icp_vec.push_back(cloud_icp);
       double score = icp.getFitnessScore();
@@ -590,24 +623,12 @@ void PoseEstimator::pcl_callback(const pcl::PCLPointCloud2ConstPtr& msg_cloud){
       
       tf2::Vector3 position_cube = tf2::Vector3(icp_transformation(0,3),icp_transformation(1,3),icp_transformation(2,3));
       
-      //Eigen::MatrixXf m(3,3);
-      // Eigen::Matrix3f m;
-      // m << icp_transformation(0,0),icp_transformation(0,1),icp_transformation(0,2),
-      //                                                              icp_transformation(1,0),icp_transformation(1,1),icp_transformation(1,2),
-      //                                                              icp_transformation(2,0),icp_transformation(2,1),icp_transformation(2,2);
-
-      // std::cout << m << std::endl;
-
-      // m = CorrectRotationMatrix(m);
-
-      // std::cout << " Position of cube x: " << icp_transformation(0,3) << std::endl;
-      // std::cout << "Position of cube y: " << icp_transformation(1,3) << std::endl;
-      // std::cout << "Position of cube z: " << icp_transformation(2,3) << std::endl;
 
 
       tf2::Matrix3x3 cube_rotation = tf2::Matrix3x3(icp_transformation(0,0),icp_transformation(0,1),icp_transformation(0,2),
                                                                    icp_transformation(1,0),icp_transformation(1,1),icp_transformation(1,2),
                                                                    icp_transformation(2,0),icp_transformation(2,1),icp_transformation(2,2));
+
       
       tf2::Quaternion cube_orientation;
       cube_rotation.getRotation(cube_orientation); 
@@ -630,34 +651,19 @@ void PoseEstimator::pcl_callback(const pcl::PCLPointCloud2ConstPtr& msg_cloud){
       tf2::Matrix3x3 m(q);
       // correct the rotation matrix
       tf2::Matrix3x3 m2 = CorrectRotationMatrix(m);
+
+      //for (int i = 0; i < 3; i++) {
+      //  for (int j = 0; j < 3; j++) {
+      
+      //      std::cout << m2[i][j] << ' ';
+      //  }
+       
+      // std::cout << std::endl;
+      //}
+
       m2.getRotation(cube_orientation);
 
 
-      // try{
-      //   transformStamped = tfBuffer.lookupTransform("base_footprint","xtion_rgb_optical_frame",ros::Time(0),ros::Duration(0.1));
-      // }
-      // catch (tf2::TransformException &ex) {
-      //    ROS_WARN("%s",ex.what());
-      // }
-      
-      // Eigen::Matrix4d temp_matrix;
-      // temp_matrix = icp_transformation.cast<double>();
-      // Eigen::Affine3d pose_icp;
-      // pose_icp.matrix() = temp_matrix;
-      // //std::cout << " Matrix1: " << pose_icp.matrix() << std::endl;
-      // geometry_msgs::TransformStamped estimated_pose = tf2::eigenToTransform(pose_icp);
-      // //std::cout << " Matrix2: " << estimated_pose << std::endl;
-
-      // geometry_msgs::TransformStamped  pose_transformed;
-      // //tf2::doTransform(estimated_pose, pose_transformed, transformStamped);
-      // estimated_pose.header.frame_id = "xtion_rgb_optical_frame";
-      // Eigen::Affine3d pose_icp_transformed;
-      // //tf2::doTransform(pose_icp, pose_icp_transformed, transformStamped);
-
-      // tfBuffer.transform(estimated_pose,pose_transformed,"base_footprint",ros::Duration(0.1));
-      // //std::cout << " Matrix: " << pose_transformed.matrix() << std::endl;
-
-      // pose_transformed=estimated_pose;
       nav_msgs::Odometry pose_odometry;
       pose_odometry.header = pose_transformed.header;
       pose_odometry.header.frame_id = "base_footprint";

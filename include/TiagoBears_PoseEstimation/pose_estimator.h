@@ -64,7 +64,7 @@
 #include <pcl/segmentation/supervoxel_clustering.h>
 #include <pcl/segmentation/lccp_segmentation.h>
 #include <pcl/features/fpfh_omp.h>
-
+#include <pcl/common/common.h>
 //#include <pcl/visualization/cloud_viewer.h>
 
 #include <vtkPolyLine.h>

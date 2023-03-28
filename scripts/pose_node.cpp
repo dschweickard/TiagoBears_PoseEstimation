@@ -38,6 +38,119 @@ tf2::Matrix3x3 CorrectRotMatrix(tf2::Matrix3x3 &matrix){
 }
 
 
+std::vector<pcl::PointCloud<pcl::PointXYZRGB>::Ptr> LCCP_segmentation (pcl::PointCloud<pcl::PointXYZRGB>::Ptr& input_cloud){
+
+float voxel_resolution = 0.0025f; //0.0025f
+float seed_resolution = 0.005f; //0.005f
+float color_importance = 0.5f;
+float spatial_importance = 0.1f;
+float normal_importance = 1.0f;
+
+
+// LCCP Segmentation
+float concavity_tolerance_threshold = 10;
+float smoothness_threshold = 0.1; //0.1
+std::uint32_t min_segment_size = 5;
+bool use_extended_convexity = false;
+bool use_sanity_criterion = false;
+int k_factor = 0;//1
+
+int th_points = 150;
+
+
+// // Split pointcloud to fit SuperVoxelClustering input format
+pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_RGB(new pcl::PointCloud<pcl::PointXYZRGB>);
+// pcl::PointCloud<pcl::Normal>::Ptr cloud_normals(new pcl::PointCloud<pcl::Normal>);
+pcl::copyPointCloud(*input_cloud, *cloud_RGB);
+// pcl::copyPointCloud(*input_cloud, *cloud_normals);
+
+// // Compute SuperVoxel Clustering
+pcl::SupervoxelClustering<pcl::PointXYZRGB> super(voxel_resolution, seed_resolution);
+super.setUseSingleCameraTransform(false);
+super.setInputCloud(cloud_RGB);
+// super.setNormalCloud(cloud_normals);
+
+super.setColorImportance(color_importance);
+super.setSpatialImportance(spatial_importance);
+super.setNormalImportance(normal_importance);
+
+std::map<std::uint32_t, pcl::Supervoxel<pcl::PointXYZRGB>::Ptr> supervoxel_clusters;
+PCL_INFO("Extracting supervoxels\n");
+super.extract(supervoxel_clusters);
+super.refineSupervoxels(2, supervoxel_clusters);
+
+PCL_INFO("Getting supervoxel adjacency\n");
+std::multimap<std::uint32_t, std::uint32_t> supervoxel_adjacency;
+super.getSupervoxelAdjacency(supervoxel_adjacency);
+
+pcl::PointCloud<pcl::PointXYZL>::Ptr labeled_voxel_cloud = super.getLabeledVoxelCloud ();
+
+
+/// Get the cloud of supervoxel centroid with normals and the colored cloud with supervoxel coloring (this is used for visulization)
+pcl::PointCloud<pcl::PointNormal>::Ptr sv_centroid_normal_cloud = pcl::SupervoxelClustering<pcl::PointXYZRGB>::makeSupervoxelNormalCloud (supervoxel_clusters);
+
+PCL_INFO("Starting LCCP Segmentation\n");
+pcl::LCCPSegmentation<pcl::PointXYZRGB> lccp;
+lccp.setConcavityToleranceThreshold(concavity_tolerance_threshold);
+lccp.setSanityCheck(use_sanity_criterion);
+lccp.setSmoothnessCheck(true, voxel_resolution, seed_resolution, smoothness_threshold);
+lccp.setKFactor(k_factor);
+lccp.setInputSupervoxels(supervoxel_clusters, supervoxel_adjacency);
+lccp.setMinSegmentSize(min_segment_size);
+lccp.segment();
+
+PCL_INFO("Interpolation voxel cloud -> input cloud and relabeling\n");
+pcl::PointCloud<pcl::PointXYZL>::Ptr sv_labeled_cloud = super.getLabeledCloud();
+pcl::PointCloud<pcl::PointXYZL>::Ptr lccp_labeled_cloud = sv_labeled_cloud->makeShared();
+lccp.relabelCloud(*lccp_labeled_cloud);
+pcl::LCCPSegmentation<pcl::PointXYZRGB>::SupervoxelAdjacencyList sv_adjacency_list;
+lccp.getSVAdjacencyList (sv_adjacency_list);
+
+
+
+std::vector<pcl::PointCloud<pcl::PointXYZRGB>> object_vec;
+//object_vec.resize(0);
+
+for (int i = 0; i < lccp_labeled_cloud->points.size(); ++i)
+{
+  
+  uint32_t idx = lccp_labeled_cloud->points.at(i).label;
+
+  if(idx >= object_vec.size()) 
+    object_vec.resize(idx+1);
+    //PCL_INFO("Resize 1\n");
+
+  pcl::PointXYZRGB temp_point;
+  //PCL_INFO("try access\n");
+  temp_point = cloud_RGB->points.at(i);
+  //PCL_INFO("Saved temp point\n");
+  object_vec.at(idx).points.push_back(temp_point);
+
+  //PCL_INFO("pushed point\n");
+} 
+
+ std::cout << "LCCP Cluster size:" << object_vec.size() << std::endl;
+
+
+//pcl::toPCLPointCloud2 (*cloud_cluster1, output_label_cloud2);
+std::vector<pcl::PointCloud<pcl::PointXYZRGB>::Ptr> output_vec;
+
+for (int j =0; j < object_vec.size(); j++)
+{
+
+  object_vec.at(j).header.frame_id = input_cloud->header.frame_id;
+  if (object_vec.at(j).size() > th_points){
+    pcl::PointCloud<pcl::PointXYZRGB>::Ptr object =  object_vec.at(j).makeShared();
+    output_vec.push_back(object);
+  }
+
+}
+
+return output_vec;
+}
+
+
+
 bool service_callback(TiagoBears_PoseEstimation::PoseEstimation::Request &req, TiagoBears_PoseEstimation::PoseEstimation::Response &res)
 {
   float leaf_size = 0.0025f;
@@ -145,37 +258,10 @@ bool service_callback(TiagoBears_PoseEstimation::PoseEstimation::Request &req, T
   sor.filter (*cloud_cubes);
   
 
-  pcl::search::KdTree<pcl::PointXYZRGB>::Ptr tree (new pcl::search::KdTree<pcl::PointXYZRGB>);
-
-  tree->setInputCloud (cloud_cubes);
-
-  std::vector<pcl::PointIndices> cluster_indices;
-  pcl::EuclideanClusterExtraction<pcl::PointXYZRGB> ece;
-  ece.setClusterTolerance (cluster_tolerance); //cluster_tolerance 
-  ece.setMinClusterSize (cluster_size_min); //cluster_min_size
-  ece.setMaxClusterSize (cluster_size_max); //cluster_max_size
-  ece.setSearchMethod (tree);
-  ece.setInputCloud (cloud_cubes);
-  ece.extract (cluster_indices);
-  ROS_INFO_STREAM("Size of cluster_indices: " << cluster_indices.size());
-  
-
-  std::vector<sensor_msgs::PointCloud2::Ptr> pc2_clusters;
   std::vector<pcl::PointCloud<pcl::PointXYZRGB>::Ptr> clusters_vec;
+  clusters_vec = LCCP_segmentation(cloud_cubes);
 
-  pcl::ExtractIndices<pcl::PointXYZRGB> extract_cluster;
-  
-  for (auto& cluster_idx : cluster_indices)
-  {
-    pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_cluster (new pcl::PointCloud<pcl::PointXYZRGB>);
-    pcl::PointIndices::Ptr idx (new pcl::PointIndices);
-    *idx = cluster_idx;
-    extract_cluster.setInputCloud(cloud_cubes);
-    extract_cluster.setIndices(idx);
-    extract_cluster.setNegative (false);
-    extract_cluster.filter (*cloud_cluster);
-    clusters_vec.push_back(cloud_cluster);
-  }
+
   std::vector <nav_msgs::Odometry> pose_vec;
     
   tf2_ros::Buffer cloudBuffer;
@@ -254,7 +340,7 @@ bool service_callback(TiagoBears_PoseEstimation::PoseEstimation::Request &req, T
     
     res.poseArray[i] = pose_odometry;
 
-    pose_vec.push_back(pose_odometry);
+    //pose_vec.push_back(pose_odometry);
 
     i++;
   }
