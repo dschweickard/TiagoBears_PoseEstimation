@@ -379,7 +379,7 @@ void PoseEstimator::pcl_callback(const pcl::PCLPointCloud2ConstPtr& msg_cloud){
     ROS_INFO_STREAM("FrameID  " << msg_cloud->header.frame_id);
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr model_cloud (new pcl::PointCloud<pcl::PointXYZRGB>);
     pcl::PCLPointCloud2 cloud_blob;
-    pcl::io::loadPCDFile ("src/TiagoBears_PoseEstimation/models/cubeModel3.pcd", cloud_blob);
+    pcl::io::loadPCDFile ("src/TiagoBears_PoseEstimation/models/cube.pcd", cloud_blob);
     pcl::fromPCLPointCloud2 (cloud_blob, *model_cloud); //* convert from pcl/PCLPointCloud2 to pcl::PointCloud<T>
     
 
@@ -591,6 +591,7 @@ void PoseEstimator::pcl_callback(const pcl::PCLPointCloud2ConstPtr& msg_cloud){
     // pub_pose_debug.publish(pose_corner_odometry);
 
     tf2_ros::Buffer cloudBuffer;
+    tf2_ros::TransformListener tfListenerCloud(cloudBuffer);
     //ICP
     //std::vector<double> score_vec(28, 0.0);
     std::vector<double> score_vec;
