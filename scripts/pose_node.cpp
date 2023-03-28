@@ -260,7 +260,33 @@ bool service_callback(TiagoBears_PoseEstimation::PoseEstimation::Request &req, T
 
   std::vector<pcl::PointCloud<pcl::PointXYZRGB>::Ptr> clusters_vec;
   clusters_vec = LCCP_segmentation(cloud_cubes);
+  // pcl::search::KdTree<pcl::PointXYZRGB>::Ptr tree (new pcl::search::KdTree<pcl::PointXYZRGB>);
 
+  // tree->setInputCloud (cloud_cubes);
+
+  // std::vector<pcl::PointIndices> cluster_indices;
+  // pcl::EuclideanClusterExtraction<pcl::PointXYZRGB> ece;
+  // ece.setClusterTolerance (0.003f); //cluster_tolerance 
+  // ece.setMinClusterSize (200); //cluster_min_size
+  // ece.setMaxClusterSize (1100); //cluster_max_size
+  // ece.setSearchMethod (tree);
+  // ece.setInputCloud (cloud_cubes);
+  // ece.extract (cluster_indices);
+  // //ROS_INFO_STREAM("Size of cluster_indices: " << cluster_indices.size());
+    
+
+  // pcl::ExtractIndices<pcl::PointXYZRGB> extract_cluster;
+  // for (auto& cluster_idx : cluster_indices)
+  // {
+  //     pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_cluster (new pcl::PointCloud<pcl::PointXYZRGB>);
+  //     pcl::PointIndices::Ptr idx (new pcl::PointIndices);
+  //     *idx = cluster_idx;
+  //     extract_cluster.setInputCloud(cloud_cubes);
+  //     extract_cluster.setIndices(idx);
+  //     extract_cluster.setNegative (false);
+  //     extract_cluster.filter (*cloud_cluster);
+  //     clusters_vec.push_back(cloud_cluster);
+  // }
 
   std::vector <nav_msgs::Odometry> pose_vec;
     
