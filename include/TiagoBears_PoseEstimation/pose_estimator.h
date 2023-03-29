@@ -20,7 +20,7 @@
 #include<tf2_geometry_msgs/tf2_geometry_msgs.h>
 
 #include <TiagoBears_PoseEstimation/PoseEstimation.h>
-#include <TiagoBears_PoseEstimation/TiagoBears_TableCornerPoints.h>
+#include <TiagoBears_PoseEstimation/TableCornerDetection.h>
 
 
 // PCL related headers
@@ -104,8 +104,8 @@ public:
     bool service_callback_poses(TiagoBears_PoseEstimation::PoseEstimation::Request &req, 
                             TiagoBears_PoseEstimation::PoseEstimation::Response &res);
     
-    bool service_callback_corners(TiagoBears_PoseEstimation::TiagoBears_TableCornerPoints::Request &reqC,
-                                    TiagoBears_PoseEstimation::TiagoBears_TableCornerPoints::Response &resC)
+    bool service_callback_corners(TiagoBears_PoseEstimation::TableCornerDetection::Request &reqC,
+                                    TiagoBears_PoseEstimation::TableCornerDetection::Response &resC);
 };
 
 
