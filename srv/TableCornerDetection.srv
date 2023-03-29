@@ -1,5 +1,5 @@
 #request
 string input
 ---
-#response
+#response: [top_left, top_right, bot_left, bot_right]
 geometry_msgs/Point[4] cornerPointArray

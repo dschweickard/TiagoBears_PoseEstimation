@@ -86,7 +86,7 @@ std::vector<pcl::PointCloud<pcl::PointXYZRGB>::Ptr> LCCP (pcl::PointCloud<pcl::P
 
 float voxel_resolution = 0.0025f; //0.0025f
 float seed_resolution = 0.005f; //0.005f
-float color_importance = 0.5f;
+float color_importance = 1.0f;
 float spatial_importance = 0.1f;
 float normal_importance = 1.0f;
 
