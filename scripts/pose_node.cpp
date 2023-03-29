@@ -369,6 +369,10 @@ bool service_callback(TiagoBears_PoseEstimation::PoseEstimation::Request &req, T
     //pose_vec.push_back(pose_odometry);
 
     i++;
+    if (i == 28)
+    {
+      break;
+    }
   }
 
   return true;
