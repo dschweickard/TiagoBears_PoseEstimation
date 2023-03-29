@@ -1,7 +1,7 @@
 #include <ros/ros.h>
 #include <TiagoBears_PoseEstimation/pose_estimator.h>
 #include <TiagoBears_PoseEstimation/PoseEstimation.h>
-
+#include <TiagoBears_PoseEstimation/TableCornerDetection.h>
 
 
 tf2::Matrix3x3 CorrectRotMatrix(tf2::Matrix3x3 &matrix){
@@ -151,7 +151,7 @@ return output_vec;
 
 
 
-bool service_callback(TiagoBears_PoseEstimation::PoseEstimation::Request &req, TiagoBears_PoseEstimation::PoseEstimation::Response &res)
+bool service_callback_poses(TiagoBears_PoseEstimation::PoseEstimation::Request &req, TiagoBears_PoseEstimation::PoseEstimation::Response &res)
 {
   float leaf_size = 0.0025f;
 
@@ -380,6 +380,142 @@ bool service_callback(TiagoBears_PoseEstimation::PoseEstimation::Request &req, T
 }
 
 
+bool service_callback_corner(TiagoBears_PoseEstimation::TableCornerDetection::Request &reqC, TiagoBears_PoseEstimation::TableCornerDetection::Response &resC)
+{
+  float leaf_size = 0.0025f;
+
+  float crop_x_min = -0.6f;
+  float crop_x_max = +0.6f;
+  float crop_y_min = -0.6f;
+  float crop_y_max = +1.1f;
+  float crop_z_min = -1.0f;
+  float crop_z_max = +1.0f;
+  float plane_seg_dist_treshold = 0.0065f;
+  
+  int MeanK = 50;
+  float StddevMulThresh = 1.0f;
+
+
+
+
+  sensor_msgs::PointCloud2 msg_cloud2;
+  //pcl::PCLPointCloud2ConstPtr msg_cloud;
+  sensor_msgs::PointCloud2ConstPtr msg2 = ros::topic::waitForMessage<sensor_msgs::PointCloud2>("/xtion/depth_registered/points", ros::Duration(10));
+  if (msg2 == NULL)
+      ROS_INFO("No point clound messages received");
+  else
+        msg_cloud2 = *msg2;
+
+  
+
+  pcl::PointCloud<pcl::PointXYZRGB>::Ptr input_filtered_cloud2(new pcl::PointCloud< pcl::PointXYZRGB>);
+  pcl::PointCloud<pcl::PointXYZRGB>::Ptr msg_cloud_pcl2(new pcl::PointCloud< pcl::PointXYZRGB>);
+  pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_filterd_vox2(new pcl::PointCloud< pcl::PointXYZRGB>);
+
+  // Convert from PointCloud2 to PointCloud
+  //pcl::fromPCLPointCloud2 (msg_cloud, *msg_cloud_pcl);
+  pcl::fromROSMsg(msg_cloud2, *msg_cloud_pcl2);
+
+  pcl::VoxelGrid<pcl::PointXYZRGB> vox2;
+  vox2.setInputCloud (msg_cloud_pcl2);
+  vox2.setLeafSize (leaf_size,leaf_size,leaf_size);
+  vox2.filter (*cloud_filterd_vox2);
+
+
+  pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_cropped2(new pcl::PointCloud< pcl::PointXYZRGB>);
+
+  // Set up CropBox and filter input PointCloud
+  pcl::CropBox<pcl::PointXYZRGB> crop2;
+  crop2.setInputCloud (cloud_filterd_vox2);
+  // y and z parameter seem to crop same dimension just inverted?
+  crop2.setMin(Eigen::Vector4f(crop_x_min, crop_y_min, crop_z_min, 0.));
+  crop2.setMax(Eigen::Vector4f(crop_x_max, crop_y_max, crop_z_max, 0.));
+  crop2.filter (*cloud_cropped2);
+  ROS_INFO("[filtered]");
+
+
+  pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_plane2 (new pcl::PointCloud<pcl::PointXYZRGB>);
+
+  // Create the segmentation object for the planar model and set all the parameters
+  pcl::SACSegmentation<pcl::PointXYZRGB> seg2;
+  pcl::PointIndices::Ptr inliers2 (new pcl::PointIndices);
+  pcl::ModelCoefficients::Ptr coefficients2 (new pcl::ModelCoefficients);
+  seg2.setOptimizeCoefficients (true);
+  seg2.setModelType (pcl::SACMODEL_PLANE);
+  seg2.setMethodType (pcl::SAC_RANSAC);
+  seg2.setMaxIterations (1000);
+  seg2.setDistanceThreshold (plane_seg_dist_treshold);
+  // Segment largest planar component from cropped cloud
+  seg2.setInputCloud (cloud_cropped2);
+  seg2.segment (*inliers2, *coefficients2);
+  if (inliers2->indices.size () == 0)
+  {
+    ROS_INFO ("Could not estimate a planar model for the given dataset.") ;
+  }
+
+
+  // Extract planar inliers from input cloud
+  pcl::ExtractIndices<pcl::PointXYZRGB> extract2;
+  extract2.setInputCloud (cloud_cropped2);
+  extract2.setIndices(inliers2);
+  extract2.setNegative (false);
+
+  // Get points associated with planar surface
+  extract2.filter (*cloud_plane2);
+
+  tf2_ros::Buffer cloudBuffer2;
+  tf2_ros::TransformListener tfListenerCloud2(cloudBuffer2);
+
+  sensor_msgs::PointCloud2 cloud_transformed;
+  sensor_msgs::PointCloud2 plane_cloud_2;
+  pcl::toROSMsg(*cloud_plane2, plane_cloud_2);
+
+
+  geometry_msgs::TransformStamped cloud_tf = cloudBuffer2.lookupTransform("base_footprint",msg2->header.frame_id, ros::Time(0),ros::Duration(0.5));
+    
+  Eigen::Matrix4d matrix_d = tf2::transformToEigen(cloud_tf.transform).matrix();
+  Eigen::Matrix4f matrix_f = matrix_d.cast <float> ();
+    
+  pcl_ros::transformPointCloud(matrix_f, plane_cloud_2,cloud_transformed);
+    
+
+  pcl::PCLPointCloud2 temp_pc2;
+  pcl_conversions::toPCL(cloud_transformed,temp_pc2);
+
+  pcl::PointCloud<pcl::PointXYZRGB>::Ptr temp_cloud_plane2(new pcl::PointCloud<pcl::PointXYZRGB>);
+  pcl::fromPCLPointCloud2(temp_pc2,*temp_cloud_plane2);
+
+    
+  pcl::PointXYZRGB minPt2, maxPt2;
+  pcl::getMinMax3D (*temp_cloud_plane2, minPt2, maxPt2);
+
+  geometry_msgs::Point top_left, top_right, bot_left, bot_right;
+
+  top_left.x = maxPt2.x;
+  top_left.y = maxPt2.y;
+  top_left.z = maxPt2.z;
+  
+  top_right.x = maxPt2.x;
+  top_right.y = minPt2.y;
+  top_right.z = maxPt2.z;
+
+  bot_left.x = minPt2.x;
+  bot_left.y = maxPt2.y;
+  bot_left.z = maxPt2.z;
+
+  bot_right.x = minPt2.x;
+  bot_right.y = minPt2.y;
+  bot_right.z = maxPt2.z;
+
+  resC.cornerPointArray[0] = top_left;
+  resC.cornerPointArray[1] = top_right;
+  resC.cornerPointArray[2] = bot_left;
+  resC.cornerPointArray[3] = bot_right;
+
+
+  return true;
+}
+
 int main(int argc, char **argv)
 {
     ROS_INFO("I heard: [node]");
@@ -388,7 +524,8 @@ int main(int argc, char **argv)
     ros::NodeHandle nh;
     PoseEstimator pose_estimator(nh);
     // define a ros service server
-    ros::ServiceServer service = nh.advertiseService("/TiagoBears/PoseEstimation", service_callback);
+    ros::ServiceServer service_poses = nh.advertiseService("/TiagoBears/PoseEstimation", service_callback_poses);
+    ros::ServiceServer service_corner = nh.advertiseService("/TiagoBears/TableCornerDetection", service_callback_corner);
     ros::spin();
 }
 

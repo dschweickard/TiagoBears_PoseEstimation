@@ -1,0 +1,5 @@
+#request
+string input
+---
+#response
+geometry_msgs/Point[4] cornerPointArray
