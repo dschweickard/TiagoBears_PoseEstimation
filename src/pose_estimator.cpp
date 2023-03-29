@@ -1,6 +1,6 @@
 #include<TiagoBears_PoseEstimation/pose_estimator.h>
 #include<TiagoBears_PoseEstimation/PoseEstimation.h>
-#include <TiagoBears_PoseEstimation/TiagoBears_TableCornerPoints.h>
+#include <TiagoBears_PoseEstimation/TableCornerDetection.h>
 
 PoseEstimator::PoseEstimator(ros::NodeHandle n){
     ROS_INFO("I heard: [constructor]");
@@ -601,20 +601,6 @@ void PoseEstimator::pcl_callback(const pcl::PCLPointCloud2ConstPtr& msg_cloud){
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr temp_cloud_plane(new pcl::PointCloud<pcl::PointXYZRGB>);
     pcl::fromPCLPointCloud2(temp_pc2,*temp_cloud_plane);
 
-
-    std::vector<float> x_values;
-    std::vector<float> y_values;
-    std::vector<float> z_values;
-    for (int l = 0; l < temp_cloud_plane->points.size (); l++)
-   {
-	   x_values.push_back(temp_cloud_plane->points[l].x);
-	   y_values.push_back(temp_cloud_plane->points[l].y);
-	   z_values.push_back(temp_cloud_plane->points[l].z);
-    }
-
-    std::cout << *std::max_element(std::begin(x_values), std::end(x_values));
-    std::cout << *std::max_element(std::begin(y_values), std::end(y_values));
-    std::cout << *std::max_element(std::begin(z_values), std::end(z_values));
     
     pcl::PointXYZRGB minPt, maxPt;
     pcl::getMinMax3D (*temp_cloud_plane, minPt, maxPt);
@@ -629,44 +615,18 @@ void PoseEstimator::pcl_callback(const pcl::PCLPointCloud2ConstPtr& msg_cloud){
     // pose_corner_odometry.pose.pose.position.z = 0.6;
     // pose_corner_odometry.pose.pose.orientation = tf2::toMsg(orientation_corner_point);
 
-    std::cout << "Max x: " << maxPt.x << std::endl;
-    std::cout << "Max y: " << maxPt.y << std::endl;
-    std::cout << "Max z: " << maxPt.z << std::endl;
-    std::cout << "Min x: " << minPt.x << std::endl;
-    std::cout << "Min y: " << minPt.y << std::endl;
-    std::cout << "Min z: " << minPt.z << std::endl;
+    // std::cout << "Max x: " << maxPt.x << std::endl;
+    // std::cout << "Max y: " << maxPt.y << std::endl;
+    // std::cout << "Max z: " << maxPt.z << std::endl;
+    // std::cout << "Min x: " << minPt.x << std::endl;
+    // std::cout << "Min y: " << minPt.y << std::endl;
+    // std::cout << "Min z: " << minPt.z << std::endl;
 
     //pub_pose_debug.publish(pose_corner_odometry);
     //pub_cloud_debug.publish(temp_cloud_plane);
 
-    tf2::Vector3 position_corner_point = tf2::Vector3(maxPt.x, maxPt.y, maxPt.z);
-    tf2::Quaternion orientation_corner_point = tf2::Quaternion(0.,0.,0.,0.);
 
-
-    geometry_msgs::TransformStamped estimated_corner_point;
-    estimated_corner_point.header.frame_id = cloud_plane->header.frame_id;
-    //estimated_corner_point.header.seq = cloud_plane->header.seq;
-    estimated_corner_point.transform.translation = tf2::toMsg(position_corner_point);
-    estimated_corner_point.transform.rotation = tf2::toMsg(orientation_corner_point);
-
-    geometry_msgs::TransformStamped  pose_corner_transformed;
-    cloudBuffer.transform(estimated_corner_point, pose_corner_transformed,"base_footprint",ros::Duration(0.5));
-
-    nav_msgs::Odometry pose_corner_odometry;
-    //pose_corner_odometry.header = pose_corner_transformed.header;
-    pose_corner_odometry.header.frame_id = "base_footprint";
-    //pose_corner_odometry.pose.pose.position.x = pose_corner_transformed.transform.translation.x;
-    //pose_corner_odometry.pose.pose.position.y = pose_corner_transformed.transform.translation.y;
-    //pose_corner_odometry.pose.pose.position.z = pose_corner_transformed.transform.translation.z;
-    pose_corner_odometry.pose.pose.position.x = minPt.x;
-    pose_corner_odometry.pose.pose.position.y = minPt.y;
-    pose_corner_odometry.pose.pose.position.z =  minPt.z;
-    pose_corner_odometry.pose.pose.orientation = tf2::toMsg(orientation_corner_point);
-    
-    ROS_INFO_STREAM("Corner: " << pose_corner_odometry);
-
-
-    pub_pose_debug.publish(pose_corner_odometry);
+    //pub_pose_debug.publish(pose_corner_odometry);
 
 
 
