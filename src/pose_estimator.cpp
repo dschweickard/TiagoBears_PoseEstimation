@@ -5,18 +5,20 @@
 PoseEstimator::PoseEstimator(ros::NodeHandle n){
     ROS_INFO("I heard: [constructor]");
     // initialize the publishers
-    for(int i=0; i<28; i++){
+    //for(int i=0; i<28; i++){
     
-          char* topic;
-          sprintf(topic, "/cube_%d_odom", i);
-          pose_publishers.push_back(n.advertise<nav_msgs::Odometry>(topic,1));
-    }
+    //      char* topic;
+    //      sprintf(topic, "/cube_%d_odom", i);
+    //      pose_publishers.push_back(n.advertise<nav_msgs::Odometry>(topic,1));
+    //}
     //ROS_INFO("I heard: [Publisher clouds]");
+    
     for(int j=0; j<28; j++){
            char* topic;
            sprintf(topic, "/cloud_cluster_%d", j);
            cloud_publishers.push_back(n.advertise<sensor_msgs::PointCloud2>(topic,1));
    }
+    
     //pcl::io::loadPCDFile ("/meshs/cubeModel.pcd", blob);
     //ROS_INFO("I heard: [readPCD]");
     //pcl::fromPCLPointCloud2 (blob, cloud);
@@ -30,8 +32,8 @@ PoseEstimator::PoseEstimator(ros::NodeHandle n){
     //ROS_INFO("I heard: [Publisher1]");
     //pub_cloud_debug = n.advertise<sensor_msgs::PointCloud2>("CloudFiltered", 1);
     //ROS_INFO("I heard: [Publisher2]");
-    
-    pub_pose_debug = n.advertise<nav_msgs::Odometry>("PlanePose", 1);
+    pub_pose_array = n.advertise<geometry_msgs::PoseArray>("/estimatedPoses",1);
+    //pub_pose_debug = n.advertise<nav_msgs::Odometry>("PlanePose", 1);
     //ROS_INFO("I heard: [Publisher3]");
     //pub_icp_debug = n.advertise<sensor_msgs::PointCloud2>("CloudICP", 1);
     //pose_server = n.advertiseService("PoseEstimation", &PoseEstimator::service_callback,this);
@@ -639,7 +641,7 @@ void PoseEstimator::pcl_callback(const pcl::PCLPointCloud2ConstPtr& msg_cloud){
     icp.setMaximumIterations (1000000);
     icp.setTransformationEpsilon (1e-12);
 
-    
+    geometry_msgs::PoseArray  poseArray;
     std::vector <nav_msgs::Odometry> pose_vec;
 
 
@@ -695,6 +697,16 @@ void PoseEstimator::pcl_callback(const pcl::PCLPointCloud2ConstPtr& msg_cloud){
 
       m2.getRotation(cube_orientation);
 
+      poseArray.header = pose_transformed.header;
+      poseArray.header.frame_id = "base_footprint";
+
+      geometry_msgs::Pose p;
+      p.position.x = pose_transformed.transform.translation.x;
+      p.position.y = pose_transformed.transform.translation.y;
+      p.position.z = pose_transformed.transform.translation.z;
+      p.orientation = tf2::toMsg(cube_orientation);
+
+      poseArray.poses.push_back(p);
 
       nav_msgs::Odometry pose_odometry;
       pose_odometry.header = pose_transformed.header;
@@ -723,9 +735,9 @@ void PoseEstimator::pcl_callback(const pcl::PCLPointCloud2ConstPtr& msg_cloud){
     //pub_pose_debug.publish(pose_vec.at(minElementIndex));
     //pub_cloud_debug.publish(clusters_vec.at(minElementIndex));
 
-    for(int i=0; i<pose_vec.size();++i){
-      pose_publishers[i].publish(pose_vec[i]);
-    }
-
+    //for(int i=0; i<pose_vec.size();++i){
+    //  pose_publishers[i].publish(pose_vec[i]);
+    //}
+    pub_pose_array.publish(poseArray);
 }
 

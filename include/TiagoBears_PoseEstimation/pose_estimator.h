@@ -13,6 +13,7 @@
 #include <ros/ros.h>
 #include <nav_msgs/Odometry.h>
 #include <geometry_msgs/Pose.h>
+#include <geometry_msgs/PoseArray.h>
 
 #include <tf2_ros/transform_listener.h>
 #include <geometry_msgs/TransformStamped.h>
@@ -92,7 +93,7 @@ class PoseEstimator{
     ros::Publisher pub_cloud_debug;
     ros::Publisher pub_icp_debug;
     ros::Publisher pub_pose_debug;
-    //ros::Publisher pup_cloud_cluster;
+    ros::Publisher pub_pose_array;
     //Server
     //ros::ServiceServer pose_server;
 public:
