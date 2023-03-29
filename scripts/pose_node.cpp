@@ -1,7 +1,7 @@
 #include <ros/ros.h>
 #include <TiagoBears_PoseEstimation/pose_estimator.h>
 #include <TiagoBears_PoseEstimation/PoseEstimation.h>
-
+#include <TiagoBears_PoseEstimation/TiagoBears_TableCornerPoints.h>s
 
 
 tf2::Matrix3x3 CorrectRotMatrix(tf2::Matrix3x3 &matrix){
@@ -151,7 +151,7 @@ return output_vec;
 
 
 
-bool service_callback(TiagoBears_PoseEstimation::PoseEstimation::Request &req, TiagoBears_PoseEstimation::PoseEstimation::Response &res)
+bool service_callback_poses(TiagoBears_PoseEstimation::PoseEstimation::Request &req, TiagoBears_PoseEstimation::PoseEstimation::Response &res)
 {
   float leaf_size = 0.0025f;
 
@@ -376,6 +376,12 @@ bool service_callback(TiagoBears_PoseEstimation::PoseEstimation::Request &req, T
 }
 
 
+bool service_callback_corner(TiagoBears_PoseEstimation::TiagoBears_TableCornerPoints::Request &reqC, TiagoBears_PoseEstimation::TiagoBears_TableCornerPoints::Response &resC)
+{
+
+  return true;
+}
+
 int main(int argc, char **argv)
 {
     ROS_INFO("I heard: [node]");
@@ -384,7 +390,8 @@ int main(int argc, char **argv)
     ros::NodeHandle nh;
     PoseEstimator pose_estimator(nh);
     // define a ros service server
-    ros::ServiceServer service = nh.advertiseService("PoseEstimation", service_callback);
+    ros::ServiceServer service_poses = nh.advertiseService("PoseEstimation", service_callback_poses);
+    ros::ServiceServer service_corner = nh.advertiseService("TiagoBears_TableCornerPoints", service_callback_corner)
     ros::spin();
 }
 

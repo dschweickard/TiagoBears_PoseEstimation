@@ -26,6 +26,7 @@ add_message_files(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
 add_service_files(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
    FILES
    srv/PoseEstimation.srv
+   srv/TiagoBears_TableCornerPoints
 )
 
 

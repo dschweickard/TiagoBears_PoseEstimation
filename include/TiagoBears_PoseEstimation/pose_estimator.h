@@ -20,6 +20,7 @@
 #include<tf2_geometry_msgs/tf2_geometry_msgs.h>
 
 #include <TiagoBears_PoseEstimation/PoseEstimation.h>
+#include <TiagoBears_PoseEstimation/TiagoBears_TableCornerPoints.h>
 
 
 // PCL related headers
@@ -65,6 +66,9 @@
 #include <pcl/segmentation/lccp_segmentation.h>
 #include <pcl/features/fpfh_omp.h>
 #include <pcl/common/common.h>
+#include <pcl/keypoints/harris_3d.h>
+#include <pcl/surface/concave_hull.h>
+#include <pcl/surface/convex_hull.h>
 //#include <pcl/visualization/cloud_viewer.h>
 
 #include <vtkPolyLine.h>
@@ -97,8 +101,11 @@ public:
     
     void pcl_callback(const pcl::PCLPointCloud2ConstPtr& msg_cloud);
 
-    bool service_callback(TiagoBears_PoseEstimation::PoseEstimation::Request &req, 
+    bool service_callback_poses(TiagoBears_PoseEstimation::PoseEstimation::Request &req, 
                             TiagoBears_PoseEstimation::PoseEstimation::Response &res);
+    
+    bool service_callback_corners(TiagoBears_PoseEstimation::TiagoBears_TableCornerPoints::Request &reqC,
+                                    TiagoBears_PoseEstimation::TiagoBears_TableCornerPoints::Response &resC)
 };
 
 
