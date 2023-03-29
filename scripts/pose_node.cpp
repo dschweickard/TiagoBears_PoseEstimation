@@ -388,7 +388,7 @@ int main(int argc, char **argv)
     ros::NodeHandle nh;
     PoseEstimator pose_estimator(nh);
     // define a ros service server
-    ros::ServiceServer service = nh.advertiseService("PoseEstimation", service_callback);
+    ros::ServiceServer service = nh.advertiseService("/TiagoBears/PoseEstimation", service_callback);
     ros::spin();
 }
 
