@@ -369,6 +369,10 @@ bool service_callback_poses(TiagoBears_PoseEstimation::PoseEstimation::Request &
     //pose_vec.push_back(pose_odometry);
 
     i++;
+    if (i == 28)
+    {
+      break;
+    }
   }
 
   return true;
@@ -390,7 +394,7 @@ int main(int argc, char **argv)
     ros::NodeHandle nh;
     PoseEstimator pose_estimator(nh);
     // define a ros service server
-    ros::ServiceServer service_poses = nh.advertiseService("PoseEstimation", service_callback_poses);
+    ros::ServiceServer service_poses = nh.advertiseService("/TiagoBears/PoseEstimation", service_callback_poses);
     ros::ServiceServer service_corner = nh.advertiseService("TiagoBears_TableCornerPoints", service_callback_corner)
     ros::spin();
 }
