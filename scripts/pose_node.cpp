@@ -179,11 +179,12 @@ bool service_callback_poses(TiagoBears_PoseEstimation::PoseEstimation::Request &
       ROS_INFO("No point clound messages received");
   else
         msg_cloud = *msg;
-  ROS_INFO_STREAM("FrameID  " << msg->header.frame_id);
+  //ROS_INFO_STREAM("FrameID  " << msg->header.frame_id);
 
   pcl::PointCloud<pcl::PointXYZRGB>::Ptr model_cloud (new pcl::PointCloud<pcl::PointXYZRGB>);
   pcl::PCLPointCloud2 cloud_blob;
-  pcl::io::loadPCDFile ("src/TiagoBears_PoseEstimation/models/cube.pcd", cloud_blob);
+  std::string pkg_path = ros::package::getPath("TiagoBears_PoseEstimation");
+  pcl::io::loadPCDFile (pkg_path + "/models/cube.pcd", cloud_blob);
   pcl::fromPCLPointCloud2 (cloud_blob, *model_cloud); //* convert from pcl/PCLPointCloud2 to pcl::PointCloud<T>
   
 
@@ -260,34 +261,7 @@ bool service_callback_poses(TiagoBears_PoseEstimation::PoseEstimation::Request &
 
   std::vector<pcl::PointCloud<pcl::PointXYZRGB>::Ptr> clusters_vec;
   clusters_vec = LCCP_segmentation(cloud_cubes);
-  // pcl::search::KdTree<pcl::PointXYZRGB>::Ptr tree (new pcl::search::KdTree<pcl::PointXYZRGB>);
-
-  // tree->setInputCloud (cloud_cubes);
-
-  // std::vector<pcl::PointIndices> cluster_indices;
-  // pcl::EuclideanClusterExtraction<pcl::PointXYZRGB> ece;
-  // ece.setClusterTolerance (0.003f); //cluster_tolerance 
-  // ece.setMinClusterSize (200); //cluster_min_size
-  // ece.setMaxClusterSize (1100); //cluster_max_size
-  // ece.setSearchMethod (tree);
-  // ece.setInputCloud (cloud_cubes);
-  // ece.extract (cluster_indices);
-  // //ROS_INFO_STREAM("Size of cluster_indices: " << cluster_indices.size());
-    
-
-  // pcl::ExtractIndices<pcl::PointXYZRGB> extract_cluster;
-  // for (auto& cluster_idx : cluster_indices)
-  // {
-  //     pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_cluster (new pcl::PointCloud<pcl::PointXYZRGB>);
-  //     pcl::PointIndices::Ptr idx (new pcl::PointIndices);
-  //     *idx = cluster_idx;
-  //     extract_cluster.setInputCloud(cloud_cubes);
-  //     extract_cluster.setIndices(idx);
-  //     extract_cluster.setNegative (false);
-  //     extract_cluster.filter (*cloud_cluster);
-  //     clusters_vec.push_back(cloud_cluster);
-  // }
-
+  
   std::vector <nav_msgs::Odometry> pose_vec;
     
   tf2_ros::Buffer cloudBuffer;

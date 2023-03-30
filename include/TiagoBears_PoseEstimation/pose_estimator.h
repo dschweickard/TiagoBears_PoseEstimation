@@ -11,6 +11,7 @@
 
 // ROS headers
 #include <ros/ros.h>
+#include <ros/package.h>
 #include <nav_msgs/Odometry.h>
 #include <geometry_msgs/Pose.h>
 #include <geometry_msgs/PoseArray.h>

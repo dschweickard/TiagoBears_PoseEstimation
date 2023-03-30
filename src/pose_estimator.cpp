@@ -32,7 +32,7 @@ PoseEstimator::PoseEstimator(ros::NodeHandle n){
     //ROS_INFO("I heard: [Publisher1]");
     //pub_cloud_debug = n.advertise<sensor_msgs::PointCloud2>("CloudFiltered", 1);
     //ROS_INFO("I heard: [Publisher2]");
-    pub_pose_array = n.advertise<geometry_msgs::PoseArray>("/estimatedPoses",1);
+    pub_pose_array = n.advertise<geometry_msgs::PoseArray>("/TiagoBears/estimatedPoses",1);
     //pub_pose_debug = n.advertise<nav_msgs::Odometry>("PlanePose", 1);
     //ROS_INFO("I heard: [Publisher3]");
     //pub_icp_debug = n.advertise<sensor_msgs::PointCloud2>("CloudICP", 1);
@@ -382,7 +382,8 @@ void PoseEstimator::pcl_callback(const pcl::PCLPointCloud2ConstPtr& msg_cloud){
     ROS_INFO_STREAM("FrameID  " << msg_cloud->header.frame_id);
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr model_cloud (new pcl::PointCloud<pcl::PointXYZRGB>);
     pcl::PCLPointCloud2 cloud_blob;
-    pcl::io::loadPCDFile ("src/TiagoBears_PoseEstimation/models/cube.pcd", cloud_blob);
+    std::string pkg_path = ros::package::getPath("TiagoBears_PoseEstimation");
+    pcl::io::loadPCDFile (pkg_path + "/models/cube.pcd", cloud_blob);
     pcl::fromPCLPointCloud2 (cloud_blob, *model_cloud); //* convert from pcl/PCLPointCloud2 to pcl::PointCloud<T>
     
 
